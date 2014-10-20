@@ -64,14 +64,14 @@
 	(psr-lista-var psr))
 	
 ; psr-variaveis-nao-atribuidas - FIX - ME ainda tem uns probs.
-(defun psr-variaveis-nao-atribuidas(psr)
-	(let ((lista-v (psr-lista-var psr)) (res ()))
-		(loop do
-			(cond ((not(boundp (first lista-v)))
-				(cons (first lista-v) res)))
-			(setf lista-v (rest lista-v))
-		 while (not(null lista-v)))
-	))
+;(defun psr-variaveis-nao-atribuidas(psr)
+;	(let ((lista-v (psr-lista-var psr)) (res ()))
+;		(loop do
+;			(cond ((not(boundp (first lista-v)))
+;				(cons (first lista-v) res)))
+;			(setf lista-v (rest lista-v))
+;		 while (not(null lista-v)))
+;	))
 ;========================= Fim Estruturas de Dados ========================
 
 
