@@ -58,7 +58,7 @@
 		(setf res (reverse res))			
 		(let ((psr (make-psr :lista-var lista-v :lista-dom lista-d :lista-restr lista-r :lista-atr res))) 
 			psr)))	
-					vou 
+	
 					
 ;###Functions###					
 ; psr-atributos(psr) -
