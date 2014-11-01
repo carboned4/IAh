@@ -5,7 +5,7 @@
 ;Miguel de Oliveira Melicia Martins N 76102
 
 ;=========================== FUNCOES AUXILIARES =============================
-; junta - funcao que retorna a junção das 2 listas dadas.
+; junta(lista lista) - funcao que retorna a junção das 2 listas dadas.
 (defun junta (l1 l2)
 	"Junta duas listas"
 	(if (null l1)
@@ -13,6 +13,7 @@
 		(cons (first l1)
 			(junta (rest l1) l2))))
 
+; membro(elemento lista) - Verifies if the element is in the list.
 (defun membro (ele lis)
 	(cond ((null lis) NIL)
 		((equal ele (first lis)) T)
@@ -55,10 +56,9 @@
 			(setf iter-var (rest iter-var))
 			(setf iter-dom (rest iter-dom))
 		while(not(null iter-var)))
-		(reverse vars)
+		(setf vars (reverse vars))
 		(let ((psr (make-psr :lista-var vars :lista-restr lista-r)))
-			psr)))
-			
+			psr)))		
 ;#################			
 					
 ;###Functions###					
@@ -128,12 +128,16 @@
 ;==========================================================================
 ;========================= Funcoes do Tabuleiro ===========================
 
-; fill-a-pix(arr) - Transforms an array in a PSR problem.
-(defun fill-a-pix ()
+; fill-a-pix->psr(arr) - Transforms an array in a PSR.
+(defun fill-a-pix->psr ()
 
 )
 
 ;========================= Fim Funcoes do Tabuleiro =========================
+;============================================================================
+;========================= Funcoes para Resolucao CSP========================
+
+
 
 ;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!TESTS PURPOSE ONLY!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
