@@ -45,9 +45,6 @@
 (defstruct var (nome NIL) (valor NAO-ATRIBUIDA) (dom NIL))
 (defstruct psr (lista-var NIL) (lista-restr NIL))
 
-;ATENCAO: lista-atr tem uma lista de pares ((NIL . "aa") ...) em que o primeiro elemento do par
-;e a atribuicao e o segundo a variavel.
-
 ;###Constructor###
 ; cria-psr(lista lista lista) - Create PSR.	
 (defun cria-psr (lista-v lista-d lista-r)
