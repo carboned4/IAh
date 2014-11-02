@@ -28,6 +28,7 @@
 	(let ((restricao (make-restricao :lista-var lista :predicado predicado))) 
 		restricao))
 
+		
 ; restricao-variaveis(restricao) - Returns the list of envolved variables.		
 (defun restricao-variaveis (restricao)
 	(restricao-lista-var restricao))
@@ -86,13 +87,24 @@
 (defun psr-variaveis-nao-atribuidas (psr)
 	(let ((res NIL) (iter-var (psr-lista-var psr)))
 		(loop do
-			(when (= (var-valor (first iter-var)) NAO-ATRIBUIDA)
+			(when (equal (var-valor (first iter-var)) NAO-ATRIBUIDA)
 				(setf res (cons (var-nome (first iter-var)) res)))
 			(setf iter-var (rest iter-var))
 		while(not(null iter-var)))
 	res))
 
-; psr-variavel-restricoes(psr var) - returns all restriction applied to var in the psr.
+; psr-variavel-dominio(psr var) - Returns var domain.
+(defun psr-variavel-dominio (psr var)
+	(let ((iter-var (psr-lista-var psr)))
+		(loop do
+			(when (equal (var-nome (first iter-var)) var)
+				(return-from psr-variavel-dominio (var-dom (first iter-var))))
+			(setf iter-var (rest iter-var))
+		while(not(null iter-var)))
+	NIL))
+	
+	
+; psr-variavel-restricoes(psr var) - Returns all restriction applied to var in the psr.
 (defun psr-variavel-restricoes(psr var)
 	(let ((res NIL) (i (psr-lista-restr psr)))
 		(loop do
@@ -102,8 +114,30 @@
 		while(not(null i)))
 	(reverse res)))
 
+; psr-adiciona-atribuicao(psr var valor) - Adds a value to the var.
+(defun psr-adiciona-atribuicao(psr var valor)
+	(let ((iter-var (psr-lista-var psr)))
+		(loop do
+			(when (equal (var-nome (first iter-var)) var)
+				(setf (var-valor (first iter-var)) valor)  
+				(return))
+			(setf iter-var (rest iter-var))
+		while(not(null iter-var)))
+	NIL))
+		
+	
+;psr-remove-atribuicao(psr var) - Makes the var without VALUE.  
+(defun psr-remove-atribuicao(psr var)
+	(let ((iter-var (psr-lista-var psr)))
+		(loop do
+			(when (equal (var-nome (first iter-var)) var)
+				(setf (var-valor (first iter-var)) NAO-ATRIBUIDA)  
+				(return))
+			(setf iter-var (rest iter-var))
+		while(not(null iter-var)))
+	NIL))
 
-; psr-altera-dominio(psr var dom) -  changes the var range.	
+; psr-altera-dominio(psr var dom) - Changes var Domain.	
 (defun psr-altera-dominio (psr var dom)
 	(let ((var-list (psr-lista-var psr)))
 		(loop do
@@ -113,6 +147,20 @@
 			(setf var-list (rest var-list))
 		while(not(null var-list)))))	
 
+; psr-completo(psr) - Verifies if all variables have a value.
+(defun psr-completo(psr)
+	(let ((var-list (psr-lista-var psr)))
+		(loop do
+			(when (equal (var-valor (first var-list)) NAO-ATRIBUIDA)
+				(return-from psr-completo NIL))
+			(setf var-list (rest var-list))
+		while(not(null var-list)))
+	T))
+
+; psr-consistente(psr) - 
+(defun psr-consistente(psr)
+
+)
 
 ; psr-variavel-consistente-p(psr var) - 
 (defun psr-variavel-consistente-p (psr var)
@@ -120,22 +168,36 @@
 		(dolist (ele restr NIL)
 			(when (not(funcall (restricao-funcao-validacao ele) psr))		;Call to restriction predicate.
 				(setf count (1+ count))
-				(return-from psr-variavel-consistente-p (cons NIL count)))
+				(return-from psr-variavel-consistente-p (values NIL count)))
 			(setf count (1+ count)))
-		(cons T count)))
-				
-;========================= Fim Estruturas de Dados ========================
+		(values T count)))
+
+; psr-atribuicao-consistente(psr var value) - 
+(defun psr-atribuicao-consistente()
+
+)
+		
+; psr-atribuicoes-consistentes-arco-p(psr var1 v1 var2 v2) - 		
+(defun psr-atribuicoes-consistentes-arco-p ()
+
+)
+	
+;========================= FIM ESTRUTURAS DE DADOS ========================
+
 ;==========================================================================
-;========================= Funcoes do Tabuleiro ===========================
+
+;========================= FUNCOES DO TABULEIRO ===========================
 
 ; fill-a-pix->psr(arr) - Transforms an array in a PSR.
 (defun fill-a-pix->psr ()
 
 )
 
-;========================= Fim Funcoes do Tabuleiro =========================
+;========================= FIM FUNCOES DO TABULEIRO =========================
+
 ;============================================================================
-;========================= Funcoes para Resolucao CSP========================
+
+;========================= FUNCOES PARA RESOLUCAO CSP =======================
 
 
 
@@ -151,8 +213,4 @@
 (setf l (list r1 r2))
 
 (setf p1 (cria-psr '("aa" "ba" "fa" "ggg") '((1 2) (1 3) (2 9) (0 1 2 3 4)) l))
-
-
-
-
-
+;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
