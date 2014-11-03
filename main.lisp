@@ -154,15 +154,19 @@
 		while(not(null var-list)))
 	T))
 
-; psr-consistente(psr) - Verifies if the CSP is consistent.
+; psr-consistente(psr) - Verifies if the CSP is consistent (VERIFIES ALL RESTRICTIONS).
 (defun psr-consistente(psr)
-	psr
-	
-)
+	(let ((count 0) (restr (psr-lista-restr psr)))								;All restrictions.
+		(dolist (restricao restr NIL)
+			(when (not(funcall (restricao-funcao-validacao restricao) psr))		;Call to restriction predicate.
+				(setf count (1+ count))
+				(return-from psr-consistente (values NIL count)))
+			(setf count (1+ count)))
+	(values T count)))
 
-; psr-variavel-consistente-p(psr var) - 
+; psr-variavel-consistente-p(psr var) - Verifies if the variable is consistent.
 (defun psr-variavel-consistente-p (psr var)
-	(let ((count 0) (restr (psr-variavel-restricoes psr var)))
+	(let ((count 0) (restr (psr-variavel-restricoes psr var)))				;Restriction affects variable.
 		(dolist (ele restr NIL)
 			(when (not(funcall (restricao-funcao-validacao ele) psr))		;Call to restriction predicate.
 				(setf count (1+ count))
@@ -176,8 +180,8 @@
 )
 		
 ; psr-atribuicoes-consistentes-arco-p(psr var1 v1 var2 v2) - 		
-(defun psr-atribuicoes-consistentes-arco-p ()
-
+(defun psr-atribuicoes-consistentes-arco-p (psr var1 v1 var2 v2)
+	psr var1 v1 var2 v2
 )
 	
 ;========================= FIM ESTRUTURAS DE DADOS ========================
