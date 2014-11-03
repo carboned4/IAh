@@ -5,7 +5,7 @@
 ;Miguel de Oliveira Melicia Martins N 76102
 
 ;=========================== FUNCOES AUXILIARES =============================
-; junta(lista lista) - funcao que retorna a junção das 2 listas dadas.
+; junta(lista lista) - funcao que retorna a juncao das 2 listas dadas.
 (defun junta (l1 l2)
 	"Junta duas listas"
 	(if (null l1)
@@ -283,9 +283,6 @@
 (setf l (list r1 r2))
 
 (setf p1 (cria-psr '("1 1" "2 1" "1 2" "2 2") '((1) (1) (1) (0)) l))
-(psr-adiciona-atribuicao p1 "1 1" 1)
-(psr-adiciona-atribuicao p1 "2 1" 1)
-(psr-adiciona-atribuicao p1 "1 2" 1)
-(psr-adiciona-atribuicao p1 "2 2" 0)
+
 (fill-a-pix->psr #2A((1 NIL 3) (4 5 6)))
 ;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
