@@ -67,7 +67,7 @@
 			(setf res (cons(cons (var-nome (first iter-var)) (var-valor (first iter-var))) res))
 			(setf iter-var (rest iter-var))
 			while(not(null iter-var)))
-	res))
+	(reverse res)))
 
 ; psr-variaveis-todas(psr) - Returns a list with all variables.		 
 (defun psr-variaveis-todas (psr)
@@ -154,9 +154,10 @@
 		while(not(null var-list)))
 	T))
 
-; psr-consistente(psr) - 
+; psr-consistente(psr) - Verifies if the CSP is consistent.
 (defun psr-consistente(psr)
-
+	psr
+	
 )
 
 ; psr-variavel-consistente-p(psr var) - 
@@ -170,8 +171,8 @@
 		(values T count)))
 
 ; psr-atribuicao-consistente(psr var value) - 
-(defun psr-atribuicao-consistente()
-
+(defun psr-atribuicao-consistente(psr var valor)
+	psr var valor
 )
 		
 ; psr-atribuicoes-consistentes-arco-p(psr var1 v1 var2 v2) - 		
@@ -185,10 +186,36 @@
 
 ;========================= FUNCOES DO TABULEIRO ===========================
 
-; fill-a-pix->psr(arr) - Transforms an array in a PSR.
-(defun fill-a-pix->psr ()
-	 
+; fill-a-pix->psr(array) - Transforms a Fill-a-Pix array-problem in a PSR.
+(defun fill-a-pix->psr (array)
+  (let*(
+        (i 0)
+        (nlinhas (first(array-dimensions array)))             
+        (ncolunas (second(array-dimensions array)))    
+        (domList (make-list (* nlinhas ncolunas) :initial-element (list 0 1)))
+        (varlist (make-list (* nlinhas ncolunas) :initial-element (list -1 -1))))        
+           
+	  (dotimes (a nlinhas)   
+      (dotimes (b ncolunas)      
+      (setf (nth i varList) (format nil "~D ~D" a b))
+      (setf i (+ i 1))))
+
+   (print varList)
+   (print domList)
+   
+   ;(cria-psr varList domList...)
+    )   
 )
+
+; psr->fill-a-pix(psr int int) - Receives a solved PSR and converts to Fill-a-Pix (array).
+(defun psr->fill-a-pix(psr int1 int2)
+	(let ((res (make-array (list int1 int2))) (atribuicoes (psr-atribuicoes psr)))
+		(dotimes (coluna int2)
+			(dotimes (linha int1)
+				(setf (aref res linha coluna) (cdr (first atribuicoes)))
+				(setf atribuicoes (rest atribuicoes))))
+		res))
+				
 
 ;========================= FIM FUNCOES DO TABULEIRO =========================
 
@@ -209,20 +236,38 @@
 ;			add {var = value) to assignment
 ;			result <- RECURSIVE-BACKTRACKING(assignment,csp)
 ;			if result != failure then return result
-;			remove {var = value) from assignment
+;			remove {var = value} from assignment
 ;	return failure
 
+(defconstant FAILURE -1)
+
 ; procura-retrocesso-simples(psr) - Receives a PSR and search for a solution.
+;(defun procura-retrocesso-simples(psr)
+;	psr
+;)
+
+; procura-retrocesso-simples(atribuicao psr) - Receives a PSR and search for a solution.
 (defun procura-retrocesso-simples(psr)
-	(cond ((psr-competo psr)
-)
+	(cond ((psr-completo psr) 
+		psr))
+	(let ((var (first (psr-variaveis-nao-atribuidas psr))) (res NIL))
+		(dolist (atr (psr-variavel-dominio psr var) NIL)
+			(cond ((psr-atribuicao-consistente psr var atr)
+				(psr-adiciona-atribuicao psr var atr)
+				(setf res (procura-retrocesso-simples psr))
+				(cond ((not (equal res FAILURE)) psr))
+				(psr-remove-atribuicao psr var))))
+	FAILURE))
 
-;
+; resolve-simples(array) - Receives a Fill-a-Pix (array) and try solve it.
 (defun resolve-simples(arr)
-	arr
-)
+	(let ((res (procura-retrocesso-simples (fill-a-pix->psr arr))))
+		(cond ((equal res FAILURE)
+			NIL)
+			(T (psr->fill-a-pix arr (array-dimension arr 0) (array-dimension arr 1))))))
 
-;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!TESTS PURPOSE ONLY!!!!!!!!!!!!!!!!!!!!!!!!!!!
+;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  TESTS PURPOSE ONLY  !!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
 (defvar r1)
 (defvar r2)
@@ -233,6 +278,10 @@
 (setf r2 (cria-restricao '("aa" "cc" "ggg") #'(lambda(psr) psr NIL)))
 (setf l (list r1 r2))
 
-(setf p1 (cria-psr '("aa" "ba" "fa" "ggg") '((1 2) (1 3) (2 9) (0 1 2 3 4)) l))
-
-;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+(setf p1 (cria-psr '("1 1" "2 1" "1 2" "2 2") '((1) (1) (1) (0)) l))
+(psr-adiciona-atribuicao p1 "1 1" 1)
+(psr-adiciona-atribuicao p1 "2 1" 1)
+(psr-adiciona-atribuicao p1 "1 2" 1)
+(psr-adiciona-atribuicao p1 "2 2" 0)
+(fill-a-pix->psr #2A((1 NIL 3) (4 5 6)))
+;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
