@@ -187,7 +187,7 @@
 
 ; fill-a-pix->psr(arr) - Transforms an array in a PSR.
 (defun fill-a-pix->psr ()
-
+	 
 )
 
 ;========================= FIM FUNCOES DO TABULEIRO =========================
@@ -196,7 +196,31 @@
 
 ;========================= FUNCOES PARA RESOLUCAO CSP =======================
 
+;!!!!!!!!!!!!!!!!!! ALGORITMO EM PSEUDO-CODIGO !!!!!!!!!!!!!!!!!!!!!!
 
+;function BACKTRACKING-SEARCH(csp) returns a solution, or failure
+;	return RECURSIVE-BACKTRACKING({ }, csp)
+
+;function RECURSIVE-BACKTRACKING(assignment,csp) returns a solution, or failure
+;	if assignment is complete then return assignment
+;	var <- SELECT-UNASSIGNED-VARIABLE(VARIABLES[csp],assignment,csp)
+;	for each value in ORDER-DOMAIN-VALUES(var,assignment,csp) do
+;		if value is consistent with assignment according to CONSTRAINTS[csp] then
+;			add {var = value) to assignment
+;			result <- RECURSIVE-BACKTRACKING(assignment,csp)
+;			if result != failure then return result
+;			remove {var = value) from assignment
+;	return failure
+
+; procura-retrocesso-simples(psr) - Receives a PSR and search for a solution.
+(defun procura-retrocesso-simples(psr)
+	(cond ((psr-competo psr)
+)
+
+;
+(defun resolve-simples(arr)
+	arr
+)
 
 ;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!TESTS PURPOSE ONLY!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -210,4 +234,5 @@
 (setf l (list r1 r2))
 
 (setf p1 (cria-psr '("aa" "ba" "fa" "ggg") '((1 2) (1 3) (2 9) (0 1 2 3 4)) l))
+
 ;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
