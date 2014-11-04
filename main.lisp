@@ -7,7 +7,7 @@
 ;(load "exemplos.fas")
 
 ;=========================== FUNCOES AUXILIARES =============================
-; junta(lista lista) - funcao que retorna a juncao das 2 listas dadas.
+; junta(lista lista) - Function retunrs l2 append in end of l1.
 (defun junta (l1 l2)
 	"Junta duas listas"
 	(if (null l1)
@@ -57,10 +57,9 @@
 			(setf iter-var (rest iter-var))
 			(setf iter-dom (rest iter-dom))
 		while(not(null iter-var)))
-		(setf vars (reverse vars))
 		(cond ((null lista-r) (setf aux SEM-RESTRICOES))
 				(T (setf aux lista-r)))
-		(let ((psr (make-psr :lista-var vars :lista-restr aux)))
+		(let ((psr (make-psr :lista-var (reverse vars) :lista-restr aux)))
 			psr)))		
 ;#################			
 					
@@ -192,20 +191,33 @@
 			(setf count (1+ count)))
 		(values T count)))
 
-; psr-atribuicao-consistente-p(psr var value) - Verifies if 
+; psr-atribuicao-consistente-p(psr var value) - Verifies if.
 (defun psr-atribuicao-consistente-p(psr var valor)
 	(cond ((equal (psr-lista-restr psr) SEM-RESTRICOES) (return-from psr-atribuicao-consistente-p (values T 0))))
-	(let ((res NIL))
+	(let ((res NIL) (aux (psr-variavel-valor psr var)))
+		(cond ((equal aux NIL) (setf aux NAO-ATRIBUIDA)))
 		(psr-adiciona-atribuicao! psr var valor)
 		(setf res (multiple-value-list (psr-variavel-consistente-p psr var)))
-		(psr-remove-atribuicao! psr var)
+		(psr-adiciona-atribuicao! psr var aux)
 		(return-from psr-atribuicao-consistente-p (values (nth 0 res) (nth 1 res)))))
 		
 		
-; psr-atribuicoes-consistentes-arco-p(psr var1 v1 var2 v2) - 		
+; psr-atribuicoes-consistentes-arco-p(psr var1 v1 var2 v2) - Verifies if		
 (defun psr-atribuicoes-consistentes-arco-p (psr var1 v1 var2 v2)
-	psr var1 v1 var2 v2
-)
+	(cond ((equal (psr-lista-restr psr) SEM-RESTRICOES) (return-from psr-atribuicoes-consistentes-arco-p (values T 0))))
+	(let ((res1 NIL) (res2 NIL) (aux1 (psr-variavel-valor psr var1)) (aux2 (psr-variavel-valor psr var2)))
+			(cond ((equal aux1 NIL) (setf aux1 NAO-ATRIBUIDA)))
+			(cond ((equal aux2 NIL) (setf aux2 NAO-ATRIBUIDA)))
+			(psr-adiciona-atribuicao! psr var1 v1)
+			(psr-adiciona-atribuicao! psr var2 v2)
+			(setf res1 (multiple-value-list (psr-variavel-consistente-p psr var1)))
+			(setf res2 (multiple-value-list (psr-variavel-consistente-p psr var2)))
+			(setf (nth 0 res1) (and (nth 0 res1) (nth 0 res2)))
+			(setf (nth 1 res1) (+ (nth 1 res1) (nth 1 res2)))
+			(psr-adiciona-atribuicao! psr var1 aux1)
+			(psr-adiciona-atribuicao! psr var2 aux2)
+			(values (nth 0 res1) (nth 1 res1))))
+			
 	
 ;========================= FIM ESTRUTURAS DE DADOS ========================
 
