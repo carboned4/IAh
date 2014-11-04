@@ -171,6 +171,7 @@
 
 ; psr-consistente-p(psr) - Verifies if the CSP is consistent (VERIFIES ALL RESTRICTIONS).
 (defun psr-consistente-p(psr)
+	
 	(cond ((equal (psr-lista-restr psr) SEM-RESTRICOES) (return-from psr-consistente-p (values T 0))))
 	(let ((count 0) (restr (psr-lista-restr psr)))								;All restrictions.
 		(dolist (restricao restr NIL)
@@ -214,7 +215,7 @@
 				(when (not(funcall (restricao-funcao-validacao ele) psr)) (return-from teste (values NIL count)))))
 	(values T count)))
 		
-; psr-atribuicoes-consistentes-arco-p(psr var1 v1 var2 v2) - Verifies if		
+; psr-atribuicoes-consistentes-arco-p(psr var1 v1 var2 v2) - Verifies if		esqu
 (defun psr-atribuicoes-consistentes-arco-p (psr var1 v1 var2 v2)
 	(cond ((equal (psr-lista-restr psr) SEM-RESTRICOES) (return-from psr-atribuicoes-consistentes-arco-p (values T 0))))
 	(let ((res NIL) (aux1 (psr-variavel-valor psr var1)) (aux2 (psr-variavel-valor psr var2)))
@@ -234,25 +235,68 @@
 ;========================= FUNCOES DO TABULEIRO ===========================
 
 ; fill-a-pix->psr(array) - Transforms a Fill-a-Pix array-problem in a PSR.
+(defun calcSum(psr lista)
+  (let(
+       (sum 0))
+    (loop for x in lista
+        do (
+            setf sum (+ sum (psr-variavel-valor psr x))         
+            ))
+      sum))
+
+(defun boarders (x y nlinhas ncolunas)
+(let* (
+(i 0)       
+(xmin (max (- x 1) 0))
+(xmax (min (+ x 1) (- nlinhas 1)))
+(ymin (max (- y 1) 0))
+(ymax (min (+ y 1) (- ncolunas 1)))
+(boarderList (make-list (* (- (+ xmax 1) (+ xmin 0)) (- (+ ymax 1) (+ ymin 0))))))
+
+(loop for a from xmin to xmax
+      do(
+      loop for b from ymin to ymax      
+      
+      do(
+         setf (nth i boarderList) (format nil "~D ~D" a b))
+      do(setf i (+ i 1))    
+      )
+      )
+
+boarderList
+))
+
+; fill-a-pix->psr(array) - Transforms a Fill-a-Pix array-problem in a PSR.
 (defun fill-a-pix->psr (array)
   (let*(
-        (i 0)
-        (nlinhas (first(array-dimensions array)))             
-        (ncolunas (second(array-dimensions array)))    
-        (domList (make-list (* nlinhas ncolunas) :initial-element (list 0 1)))
-        (varlist (make-list (* nlinhas ncolunas) :initial-element (list -1 -1))))        
-           
-	  (dotimes (a nlinhas)   
-      (dotimes (b ncolunas)      
-      (setf (nth i varList) (format nil "~D ~D" a b))
-      (setf i (+ i 1))))
-	domList
-   ;(print varList)
-   ;(print domList)
-   
-   ;(cria-psr varList domList...)
-    )   
-)
+	(i 0)
+	(val NIL)
+	(restList '())
+	(nlinhas (first(array-dimensions array)))             
+	(ncolunas (second(array-dimensions array)))    
+	(domList (make-list (* nlinhas ncolunas) :initial-element (list 0 1)))
+	(varlist (make-list (* nlinhas ncolunas) :initial-element (list -1 -1))))        
+	   
+	(dotimes (a nlinhas)   
+	(dotimes (b ncolunas)      
+	(setf (nth i varList) (format nil "~D ~D" a b))
+	(setf i (+ i 1))))
+    
+	(dotimes (x nlinhas)   
+		(dotimes (y ncolunas)
+			(setf val (aref array x y))
+			(if (not  (null val))
+				(setf restList(append restList (list   
+					(cria-restricao (boarders x y nlinhas ncolunas) 
+					#'(lambda (psr)
+						(let ((aux 0) (cmp val) (vars (boarders x y nlinhas ncolunas)))
+							(dolist (ele vars NIL)
+								(when (null (psr-variavel-valor psr ele)) (return T))
+							
+							    (setf aux (+ (psr-variavel-valor psr ele) aux)))
+							(cond ((<= aux cmp) T)
+								(T NIL)))))))))))
+	(cria-psr varList (copy-list domList) restList)))
 
 ; psr->fill-a-pix(psr int int) - Receives a solved PSR and converts to Fill-a-Pix (array).
 (defun psr->fill-a-pix(psr int1 int2)
@@ -314,16 +358,34 @@
 
 ;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  TESTS PURPOSE ONLY  !!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-;(defvar r1)
-;(defvar r2)
-;(defvar p1)
-;(defvar l)
+
 	
-;(setf r1 (cria-restricao '("aa" "cc" "fa" "dd") #'(lambda(psr) psr T)))
-;(setf r2 (cria-restricao '("aa" "cc" "ggg") #'(lambda(psr) psr NIL)))
-;(setf l (list r1 r2))
 
-;(setf p1 (cria-psr '("1 1" "2 1" "1 2" "2 2") '((1) (1) (1) (0)) l))
+(defvar r1)
+(defvar r2)
+(defvar p1)
+(defvar l)
+(defvar p)
+(setf r1 (cria-restricao '("aa" "cc" "fa" "dd") #'(lambda(psr) psr T)))
+(setf r2 (cria-restricao '("aa" "cc" "ggg") #'(lambda(psr) psr NIL)))
+(setf l (list r1 r2))
 
-;(fill-a-pix->psr #2A((1 NIL 3) (4 5 6)))
+(setf p1 (cria-psr '("0 0" "1 0" "2 0" "0 1" "1 1" "2 1" "0 2" "1 2" "2 2") '((1) (1) (1) (0) (1) (1) (1) (1) (1)) l))
+(psr-adiciona-atribuicao! p1 "0 0" 1)
+(psr-adiciona-atribuicao! p1 "1 0" 0)
+(psr-adiciona-atribuicao! p1 "2 0" 1)
+(psr-adiciona-atribuicao! p1 "0 1" 0)
+(psr-adiciona-atribuicao! p1 "1 1" 1)
+(psr-adiciona-atribuicao! p1 "2 1" 1)
+(psr-adiciona-atribuicao! p1 "0 2" 0)
+(psr-adiciona-atribuicao! p1 "1 2" 1)
+(psr-adiciona-atribuicao! p1 "2 2" 0)
+
+(setf p (fill-a-pix->psr #2A((1 NIL 3) (4 5 6))))
+(psr-adiciona-atribuicao! p "0 0" 1)
+(psr-adiciona-atribuicao! p "0 1" 0)
+(psr-adiciona-atribuicao! p "1 0" 1)
+(psr-adiciona-atribuicao! p "1 1" 0)
+(psr-adiciona-atribuicao! p "0 2" 1)
+(psr-adiciona-atribuicao! p "1 2" 1)
 ;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

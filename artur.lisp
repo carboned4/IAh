@@ -232,18 +232,12 @@
     (loop for x in lista
         do (
             setf sum (+ sum (psr-variavel-valor psr x))
-            
-            
-            
+                       
             ))
-    
-    
-       
-      
+ 
       sum
       )
-  
-  
+ 
 )  
 
 (defun boarders (x y nlinhas ncolunas)
@@ -270,11 +264,6 @@ boarderList
 ))
 
 
-
-
-
-
-
 ; fill-a-pix->psr(array) - Transforms a Fill-a-Pix array-problem in a PSR.
 (defun fill-a-pix->psr (array)
   (let*(
@@ -299,17 +288,10 @@ boarderList
            (cria-restricao (boarders x y nlinhas ncolunas) 
              #'(lambda (psr) = val (calcSum psr (boarders x y nlinhas ncolunas))) ))
                                                             
-                                                            
-                                                            
-                                                            
-                                                            
-                                                            
                                                             ))
 
        )))
 
- 
-   
    (cria-psr varList domList restList)
     )   
 )
