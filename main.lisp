@@ -201,24 +201,32 @@
 		(psr-adiciona-atribuicao! psr var aux)
 		(return-from psr-atribuicao-consistente-p (values (nth 0 res) (nth 1 res)))))
 		
+(defun teste(psr var1 var2)
+	(let ((count 0) (aux ()) (restr1 (psr-variavel-restricoes psr var1)) (restr2 (psr-variavel-restricoes psr var2)))
+		(dolist (ele restr1 NIL)
+			(when (and (membro var1 (restricao-variaveis ele)) (membro var2 (restricao-variaveis ele)))
+				(setf count (1+ count))
+				(setf aux (cons ele aux))
+				(when (not(funcall (restricao-funcao-validacao ele) psr)) (return-from teste (values NIL count)))))
+		(dolist (ele restr2 NIL)
+			(when (and (not(membro ele aux)) (membro var1 (restricao-variaveis ele)) (membro var2 (restricao-variaveis ele)))
+				(setf count (1+ count))
+				(when (not(funcall (restricao-funcao-validacao ele) psr)) (return-from teste (values NIL count)))))
+	(values T count)))
 		
 ; psr-atribuicoes-consistentes-arco-p(psr var1 v1 var2 v2) - Verifies if		
 (defun psr-atribuicoes-consistentes-arco-p (psr var1 v1 var2 v2)
 	(cond ((equal (psr-lista-restr psr) SEM-RESTRICOES) (return-from psr-atribuicoes-consistentes-arco-p (values T 0))))
-	(let ((res1 NIL) (res2 NIL) (aux1 (psr-variavel-valor psr var1)) (aux2 (psr-variavel-valor psr var2)))
+	(let ((res NIL) (aux1 (psr-variavel-valor psr var1)) (aux2 (psr-variavel-valor psr var2)))
 			(cond ((equal aux1 NIL) (setf aux1 NAO-ATRIBUIDA)))
 			(cond ((equal aux2 NIL) (setf aux2 NAO-ATRIBUIDA)))
 			(psr-adiciona-atribuicao! psr var1 v1)
 			(psr-adiciona-atribuicao! psr var2 v2)
-			(setf res1 (multiple-value-list (psr-variavel-consistente-p psr var1)))
-			(setf res2 (multiple-value-list (psr-variavel-consistente-p psr var2)))
-			(setf (nth 0 res1) (and (nth 0 res1) (nth 0 res2)))
-			(setf (nth 1 res1) (+ (nth 1 res1) (nth 1 res2)))
+			(setf res (multiple-value-list (teste psr var1 var2)))
 			(psr-adiciona-atribuicao! psr var1 aux1)
 			(psr-adiciona-atribuicao! psr var2 aux2)
-			(values (nth 0 res1) (nth 1 res1))))
-			
-	
+			(values (nth 0 res) (nth 1 res))))
+				
 ;========================= FIM ESTRUTURAS DE DADOS ========================
 
 ;==========================================================================
@@ -284,7 +292,6 @@
 ;(defun procura-retrocesso-simples(psr)
 ;	psr
 ;)
-
 ; procura-retrocesso-simples(atribuicao psr) - Receives a PSR and search for a solution.
 (defun procura-retrocesso-simples(psr)
 	(cond ((psr-completo-p psr) 
@@ -294,7 +301,7 @@
 			(cond ((psr-atribuicao-consistente-p psr var atr)
 				(psr-adiciona-atribuicao! psr var atr)
 				(setf res (procura-retrocesso-simples psr))
-				(cond ((not (equal res FAILURE)) psr))
+				(cond ((not (equal res FAILURE)) (return-from procura-retrocesso-simples psr)))
 				(psr-remove-atribuicao! psr var))))
 	FAILURE))
 
