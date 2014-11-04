@@ -4,6 +4,8 @@
 ;Andre Filipe Pardal Pires			N 76046
 ;Miguel de Oliveira Melicia Martins N 76102
 
+;(load "exemplos.fas")
+
 ;=========================== FUNCOES AUXILIARES =============================
 ; junta(lista lista) - funcao que retorna a juncao das 2 listas dadas.
 (defun junta (l1 l2)
@@ -41,6 +43,7 @@
 	
 ; 						TIPO PSR
 (defconstant NAO-ATRIBUIDA -1)
+(defconstant SEM-RESTRICOES -1)
 
 (defstruct var (nome NIL) (valor NAO-ATRIBUIDA) (dom NIL))
 (defstruct psr (lista-var NIL) (lista-restr NIL))
@@ -48,14 +51,16 @@
 ;###Constructor###
 ; cria-psr(lista lista lista) - Create PSR.	
 (defun cria-psr (lista-v lista-d lista-r)
-	(let ((vars NIL) (iter-var lista-v) (iter-dom lista-d))
+	(let ((vars NIL) (iter-var lista-v) (iter-dom lista-d) (aux NIL))
 		(loop do
 			(setf vars (cons (make-var :nome (first iter-var) :dom (first iter-dom)) vars))
 			(setf iter-var (rest iter-var))
 			(setf iter-dom (rest iter-dom))
 		while(not(null iter-var)))
 		(setf vars (reverse vars))
-		(let ((psr (make-psr :lista-var vars :lista-restr lista-r)))
+		(cond ((null lista-r) (setf aux SEM-RESTRICOES))
+				(T (setf aux lista-r)))
+		(let ((psr (make-psr :lista-var vars :lista-restr aux)))
 			psr)))		
 ;#################			
 					
@@ -64,7 +69,8 @@
 (defun psr-atribuicoes (psr)
 	(let ((res NIL) (iter-var (psr-lista-var psr)))
 		(loop do
-			(setf res (cons(cons (var-nome (first iter-var)) (var-valor (first iter-var))) res))
+			(when (not(equal (var-valor (first iter-var)) NAO-ATRIBUIDA))
+				(setf res (cons(cons (var-nome (first iter-var)) (var-valor (first iter-var))) res)))
 			(setf iter-var (rest iter-var))
 			while(not(null iter-var)))
 	(reverse res)))
@@ -76,7 +82,7 @@
 			(setf res (cons (var-nome (first iter-var)) res))
 			(setf iter-var (rest iter-var))
 		while(not(null iter-var)))
-	res))
+	(reverse res)))
 		
 	
 ; psr-variaveis-nao-atribuidas(psr) - Returns list with all variables that have
@@ -88,8 +94,18 @@
 				(setf res (cons (var-nome (first iter-var)) res)))
 			(setf iter-var (rest iter-var))
 		while(not(null iter-var)))
-	res))
+	(reverse res)))
 
+;psr-variavel-valor(psr variavel) - Function returns value of variable or NIL if variable
+; doesnt have one.
+(defun psr-variavel-valor(psr var)
+	(let ((iter-var (psr-lista-var psr)))
+		(dolist (ele iter-var NIL)
+			(cond ((and (equal var (var-nome ele)) (equal (var-valor ele) NAO-ATRIBUIDA))
+				(return NIL))
+					((equal var (var-nome ele)) (return (var-valor ele)))))))
+				
+	
 ; psr-variavel-dominio(psr var) - Returns var domain.
 (defun psr-variavel-dominio (psr var)
 	(let ((iter-var (psr-lista-var psr)))
@@ -103,6 +119,7 @@
 	
 ; psr-variavel-restricoes(psr var) - Returns all restriction applied to var in the psr.
 (defun psr-variavel-restricoes(psr var)
+	(cond ((equal (psr-lista-restr psr) NAO-ATRIBUIDA) (return-from psr-variavel-restricoes NIL)))
 	(let ((res NIL) (i (psr-lista-restr psr)))
 		(loop do
 			(when (membro var (restricao-lista-var (first i)))
@@ -111,8 +128,8 @@
 		while(not(null i)))
 	(reverse res)))
 
-; psr-adiciona-atribuicao(psr var valor) - Adds a value to the var.
-(defun psr-adiciona-atribuicao(psr var valor)
+; psr-adiciona-atribuicao! (psr var valor) - Adds a value to the var.
+(defun psr-adiciona-atribuicao! (psr var valor)
 	(let ((iter-var (psr-lista-var psr)))
 		(loop do
 			(when (equal (var-nome (first iter-var)) var)
@@ -123,8 +140,8 @@
 	NIL))
 		
 	
-;psr-remove-atribuicao(psr var) - Makes the var without VALUE.  
-(defun psr-remove-atribuicao(psr var)
+;psr-remove-atribuicao!(psr var) - Makes the var without VALUE.  
+(defun psr-remove-atribuicao! (psr var)
 	(let ((iter-var (psr-lista-var psr)))
 		(loop do
 			(when (equal (var-nome (first iter-var)) var)
@@ -134,39 +151,40 @@
 		while(not(null iter-var)))
 	NIL))
 
-; psr-altera-dominio(psr var dom) - Changes var Domain.	
-(defun psr-altera-dominio (psr var dom)
+; psr-altera-dominio!(psr var dom) - Changes var Domain.	
+(defun psr-altera-dominio! (psr var dom)
 	(let ((var-list (psr-lista-var psr)))
 		(loop do
 			(when (equal var (var-nome (first var-list)))
-				(write 1)
 				(setf (var-dom (first var-list)) dom))
 			(setf var-list (rest var-list))
 		while(not(null var-list)))))	
 
-; psr-completo(psr) - Verifies if all variables have a value.
-(defun psr-completo(psr)
+; psr-completo-p(psr) - Verifies if all variables have a value.
+(defun psr-completo-p(psr)
 	(let ((var-list (psr-lista-var psr)))
 		(loop do
 			(when (equal (var-valor (first var-list)) NAO-ATRIBUIDA)
-				(return-from psr-completo NIL))
+				(return-from psr-completo-p NIL))
 			(setf var-list (rest var-list))
 		while(not(null var-list)))
 	T))
 
-; psr-consistente(psr) - Verifies if the CSP is consistent (VERIFIES ALL RESTRICTIONS).
-(defun psr-consistente(psr)
+; psr-consistente-p(psr) - Verifies if the CSP is consistent (VERIFIES ALL RESTRICTIONS).
+(defun psr-consistente-p(psr)
+	(cond ((equal (psr-lista-restr psr) SEM-RESTRICOES) (return-from psr-consistente-p (values T 0))))
 	(let ((count 0) (restr (psr-lista-restr psr)))								;All restrictions.
 		(dolist (restricao restr NIL)
 			(when (not(funcall (restricao-funcao-validacao restricao) psr))		;Call to restriction predicate.
 				(setf count (1+ count))
-				(return-from psr-consistente (values NIL count)))
+				(return-from psr-consistente-p (values NIL count)))
 			(setf count (1+ count)))
 	(values T count)))
 
 ; psr-variavel-consistente-p(psr var) - Verifies if the variable is consistent.
 (defun psr-variavel-consistente-p (psr var)
 	(let ((count 0) (restr (psr-variavel-restricoes psr var)))				;Restriction affects variable.
+		(cond ((null restr) (return-from psr-variavel-consistente-p (values T 0))))
 		(dolist (ele restr NIL)
 			(when (not(funcall (restricao-funcao-validacao ele) psr))		;Call to restriction predicate.
 				(setf count (1+ count))
@@ -174,10 +192,15 @@
 			(setf count (1+ count)))
 		(values T count)))
 
-; psr-atribuicao-consistente(psr var value) - 
-(defun psr-atribuicao-consistente(psr var valor)
-	psr var valor
-)
+; psr-atribuicao-consistente-p(psr var value) - Verifies if 
+(defun psr-atribuicao-consistente-p(psr var valor)
+	(cond ((equal (psr-lista-restr psr) SEM-RESTRICOES) (return-from psr-atribuicao-consistente-p (values T 0))))
+	(let ((res NIL))
+		(psr-adiciona-atribuicao! psr var valor)
+		(setf res (multiple-value-list (psr-variavel-consistente-p psr var)))
+		(psr-remove-atribuicao! psr var)
+		(return-from psr-atribuicao-consistente-p (values (nth 0 res) (nth 1 res)))))
+		
 		
 ; psr-atribuicoes-consistentes-arco-p(psr var1 v1 var2 v2) - 		
 (defun psr-atribuicoes-consistentes-arco-p (psr var1 v1 var2 v2)
@@ -203,9 +226,9 @@
       (dotimes (b ncolunas)      
       (setf (nth i varList) (format nil "~D ~D" a b))
       (setf i (+ i 1))))
-
-   (print varList)
-   (print domList)
+	domList
+   ;(print varList)
+   ;(print domList)
    
    ;(cria-psr varList domList...)
     )   
@@ -252,15 +275,15 @@
 
 ; procura-retrocesso-simples(atribuicao psr) - Receives a PSR and search for a solution.
 (defun procura-retrocesso-simples(psr)
-	(cond ((psr-completo psr) 
+	(cond ((psr-completo-p psr) 
 		psr))
 	(let ((var (first (psr-variaveis-nao-atribuidas psr))) (res NIL))
 		(dolist (atr (psr-variavel-dominio psr var) NIL)
-			(cond ((psr-atribuicao-consistente psr var atr)
-				(psr-adiciona-atribuicao psr var atr)
+			(cond ((psr-atribuicao-consistente-p psr var atr)
+				(psr-adiciona-atribuicao! psr var atr)
 				(setf res (procura-retrocesso-simples psr))
 				(cond ((not (equal res FAILURE)) psr))
-				(psr-remove-atribuicao psr var))))
+				(psr-remove-atribuicao! psr var))))
 	FAILURE))
 
 ; resolve-simples(array) - Receives a Fill-a-Pix (array) and try solve it.
@@ -272,17 +295,16 @@
 
 ;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  TESTS PURPOSE ONLY  !!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
-(defvar r1)
-(defvar r2)
-(defvar p1)
-(defvar l)
+;(defvar r1)
+;(defvar r2)
+;(defvar p1)
+;(defvar l)
 	
-(setf r1 (cria-restricao '("aa" "cc" "fa" "dd") #'(lambda(psr) psr T)))
-(setf r2 (cria-restricao '("aa" "cc" "ggg") #'(lambda(psr) psr NIL)))
-(setf l (list r1 r2))
+;(setf r1 (cria-restricao '("aa" "cc" "fa" "dd") #'(lambda(psr) psr T)))
+;(setf r2 (cria-restricao '("aa" "cc" "ggg") #'(lambda(psr) psr NIL)))
+;(setf l (list r1 r2))
 
-(setf p1 (cria-psr '("1 1" "2 1" "1 2" "2 2") '((1) (1) (1) (0)) l))
+;(setf p1 (cria-psr '("1 1" "2 1" "1 2" "2 2") '((1) (1) (1) (0)) l))
 
-(fill-a-pix->psr #2A((1 NIL 3) (4 5 6)))
+;(fill-a-pix->psr #2A((1 NIL 3) (4 5 6)))
 ;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
