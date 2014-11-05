@@ -4,7 +4,7 @@
 ;Andre Filipe Pardal Pires			N 76046
 ;Miguel de Oliveira Melicia Martins N 76102
 
-(load "exemplos.fas")
+;(load "exemplos.fas")
 
 ;=========================== FUNCOES AUXILIARES =============================
 ; junta(lista lista) - Function retunrs l2 append in end of l1.
@@ -355,13 +355,9 @@ boarderList
 
 (defconstant FAILURE -1)
 
-; procura-retrocesso-simples(psr) - Receives a PSR and search for a solution.
-;(defun procura-retrocesso-simples(psr)
-;	psr
-;)
 ; procura-retrocesso-simples(atribuicao psr) - Receives a PSR and search for a solution.
 (defun procura-retrocesso-simples(psr)
-	(let ((aux 0) (aux1 0) (res0 NIL) (test NIL) (var (first (psr-variaveis-nao-atribuidas psr))) (res NIL))
+	(let ((aux 0) (aux1 0) (res0 NIL) (test NIL) (var (first (psr-variaveis-nao-atribuidas psr))) (res NIL) (res3 NIL) (aux11 0))
 		(cond ((psr-completo-p psr) 
 			(return-from procura-retrocesso-simples (values psr aux))))
 		(dolist (atr (psr-variavel-dominio psr var) NIL)
@@ -371,7 +367,10 @@ boarderList
 			(setf aux (+ aux aux1))
 			(cond ((equal test T)
 				(psr-adiciona-atribuicao! psr var atr)
-				(setf res (procura-retrocesso-simples psr))
+				(setf res3 (multiple-value-list (procura-retrocesso-simples psr)))
+				(setf res (nth 0 res3))
+				(setf aux11 (nth 1 res3))
+				(setf aux (+ aux aux11))
 				(cond ((not (equal res FAILURE)) (return-from procura-retrocesso-simples (values res aux))))
 				(psr-remove-atribuicao! psr var))))
 	(values FAILURE aux)))
@@ -383,36 +382,4 @@ boarderList
 			NIL)
 			(T (psr->fill-a-pix res (array-dimension arr 0) (array-dimension arr 1))))))
 
-;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  TESTS PURPOSE ONLY  !!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-;(defvar r1) 
-;(defvar r2)
-;(defvar p1)
-;(defvar l)
-;(defvar p)
-;(setf r1 (cria-restricao '("aa" "cc" "fa" "dd") #'(lambda(psr) psr T)))
-;(setf r2 (cria-restricao '("aa" "cc" "ggg") #'(lambda(psr) psr NIL)))
-;(setf l (list r1 r2))
-
-;(setf p1 (cria-psr '("0 0" "1 0" "2 0" "0 1" "1 1" "2 1" "0 2" "1 2" "2 2") '((1) (1) (1) (0) (1) (1) (1) (1) (1)) l))
-;(psr-adiciona-atribuicao! p1 "0 0" 1)
-;(psr-adiciona-atribuicao! p1 "1 0" 0)
-;(psr-adiciona-atribuicao! p1 "2 0" 1)
-;(psr-adiciona-atribuicao! p1 "0 1" 0)
-;(psr-adiciona-atribuicao! p1 "1 1" 1)
-;(psr-adiciona-atribuicao! p1 "2 1" 1)
-;(psr-adiciona-atribuicao! p1 "0 2" 0)
-;(psr-adiciona-atribuicao! p1 "1 2" 1)
-;(psr-adiciona-atribuicao! p1 "2 2" 0)
-
-;(setf p (fill-a-pix->psr #2A((1 NIL 3) (4 5 6))))
-;(psr-adiciona-atribuicao! p "0 0" 1)
-;(psr-adiciona-atribuicao! p "0 1" 0)
-;(psr-adiciona-atribuicao! p "1 0" 1)
-;(psr-adiciona-atribuicao! p "1 1" 0)
-;(psr-adiciona-atribuicao! p "0 2" 1)
-;(psr-adiciona-atribuicao! p "1 2" 1)
-
-
-;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+;========================= FIM FUNCOES PARA RESOLUCAO CSP =======================
