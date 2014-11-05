@@ -4,7 +4,7 @@
 ;Andre Filipe Pardal Pires			N 76046
 ;Miguel de Oliveira Melicia Martins N 76102
 
-;(load "exemplos.fas")
+(load "exemplos.fas")
 
 ;=========================== FUNCOES AUXILIARES =============================
 ; junta(lista lista) - Function retunrs l2 append in end of l1.
@@ -201,21 +201,22 @@
 		(setf res (multiple-value-list (psr-variavel-consistente-p psr var)))
 		(psr-adiciona-atribuicao! psr var aux)
 		(return-from psr-atribuicao-consistente-p (values (nth 0 res) (nth 1 res)))))
-		
-(defun teste(psr var1 var2)
+
+; Funcao Auxiliar.
+(defun restricoes-conjuntas-consistentes(psr var1 var2)
 	(let ((count 0) (aux ()) (restr1 (psr-variavel-restricoes psr var1)) (restr2 (psr-variavel-restricoes psr var2)))
 		(dolist (ele restr1 NIL)
 			(when (and (membro var1 (restricao-variaveis ele)) (membro var2 (restricao-variaveis ele)))
 				(setf count (1+ count))
 				(setf aux (cons ele aux))
-				(when (not(funcall (restricao-funcao-validacao ele) psr)) (return-from teste (values NIL count)))))
+				(when (not(funcall (restricao-funcao-validacao ele) psr)) (return-from restricoes-conjuntas-consistentes (values NIL count)))))
 		(dolist (ele restr2 NIL)
 			(when (and (not(membro ele aux)) (membro var1 (restricao-variaveis ele)) (membro var2 (restricao-variaveis ele)))
 				(setf count (1+ count))
-				(when (not(funcall (restricao-funcao-validacao ele) psr)) (return-from teste (values NIL count)))))
+				(when (not(funcall (restricao-funcao-validacao ele) psr)) (return-from restricoes-conjuntas-consistentes (values NIL count)))))
 	(values T count)))
 		
-; psr-atribuicoes-consistentes-arco-p(psr var1 v1 var2 v2) - Verifies if		esqu
+; psr-atribuicoes-consistentes-arco-p(psr var1 v1 var2 v2) - Verifies if.
 (defun psr-atribuicoes-consistentes-arco-p (psr var1 v1 var2 v2)
 	(cond ((equal (psr-lista-restr psr) SEM-RESTRICOES) (return-from psr-atribuicoes-consistentes-arco-p (values T 0))))
 	(let ((res NIL) (aux1 (psr-variavel-valor psr var1)) (aux2 (psr-variavel-valor psr var2)))
@@ -223,7 +224,7 @@
 			(cond ((equal aux2 NIL) (setf aux2 NAO-ATRIBUIDA)))
 			(psr-adiciona-atribuicao! psr var1 v1)
 			(psr-adiciona-atribuicao! psr var2 v2)
-			(setf res (multiple-value-list (teste psr var1 var2)))
+			(setf res (multiple-value-list (restricoes-conjuntas-consistentes psr var1 var2)))
 			(psr-adiciona-atribuicao! psr var1 aux1)
 			(psr-adiciona-atribuicao! psr var2 aux2)
 			(values (nth 0 res) (nth 1 res))))
@@ -234,46 +235,53 @@
 
 ;========================= FUNCOES DO TABULEIRO ===========================
 
-; fill-a-pix->psr(array) - Transforms a Fill-a-Pix array-problem in a PSR.
-(defun calcSum(psr lista)
-  (let(
-       (sum 0))
-    (loop for x in lista
-        do (
-            setf sum (+ sum (psr-variavel-valor psr x))         
-            ))
-      sum))
+; FUNCOES AUXILIARES
 
 (defun boarders (x y nlinhas ncolunas)
-(let* (
-(i 0)       
-(xmin (max (- x 1) 0))
-(xmax (min (+ x 1) (- nlinhas 1)))
-(ymin (max (- y 1) 0))
-(ymax (min (+ y 1) (- ncolunas 1)))
-(boarderList (make-list (* (- (+ xmax 1) (+ xmin 0)) (- (+ ymax 1) (+ ymin 0))))))
+	(let* (
+	(i 0)       
+	(xmin (max (- x 1) 0))
+	(xmax (min (+ x 1) (- nlinhas 1)))
+	(ymin (max (- y 1) 0))
+	(ymax (min (+ y 1) (- ncolunas 1)))
+	(boarderList (make-list (* (- (+ xmax 1) (+ xmin 0)) (- (+ ymax 1) (+ ymin 0))))))
 
-(loop for a from xmin to xmax
-      do(
-      loop for b from ymin to ymax      
-      
-      do(
-         setf (nth i boarderList) (format nil "~D ~D" a b))
-      do(setf i (+ i 1))    
-      )
-      )
+	(loop for a from xmin to xmax
+		  do(
+		  loop for b from ymin to ymax      
+		  do(
+			 setf (nth i boarderList) (format nil "~D ~D" a b))
+		  do(setf i (+ i 1))))    	 
+	boarderList))
 
-boarderList
-))
 
-(defun cria-restr (v lista)
-	(let ((aux 0) (cmp v) (lis lista))
+(defun cria-pred-geral (v lista)
+	(let ((aux 0) (aux2 -1) (cmp v) (lis lista))
 		#'(lambda (psr)
 			(dolist (ele lis NIL)
-					(when (null (psr-variavel-valor psr ele)) (return T))
+					(when (null (psr-variavel-valor psr ele)) (setf aux2 T) (return))
 					(setf aux (+ (psr-variavel-valor psr ele) aux)))
-				(cond ((<= aux cmp) T)
+				(cond (aux2 T)
+					((<= aux cmp) T)
 					(T NIL)))))
+					
+(defun cria-pred-9 (lista)
+	(let ((aux -1) (lis lista))
+		#'(lambda (psr)
+			(dolist (ele lis NIL)
+					(when (null (psr-variavel-valor psr ele)) (setf aux T)  (return))
+					(when (equal 0 (psr-variavel-valor psr ele)) (setf aux NIL) (return)))
+					 (cond ((equal aux -1) T) 
+							(T aux)))))					 
+					
+(defun cria-pred-0 (lista)
+	(let ((aux -1) (lis lista))
+		#'(lambda (psr)
+			(dolist (ele lis NIL)
+					(when (null (psr-variavel-valor psr ele)) (setf aux T) (return))
+					(when (equal 1 (psr-variavel-valor psr ele)) (setf aux NIL) (return)))
+					(cond ((equal aux -1) T) 
+							(T aux)))))
 					
 ; fill-a-pix->psr(array) - Transforms a Fill-a-Pix array-problem in a PSR.
 (defun fill-a-pix->psr (array)
@@ -288,17 +296,27 @@ boarderList
 	   
 	(dotimes (a nlinhas)   
 	(dotimes (b ncolunas)      
-	(setf (nth i varList) (format nil "~D ~D" a b))
+	(setf (nth i varList) (format nil "~D ~D" b a))
 	(setf i (+ i 1))))
     
-	(dotimes (x nlinhas)   
-		(dotimes (y ncolunas)
-			(setf val (aref array x y))
-			(if (not  (null val))
+	(dotimes (x ncolunas)   
+		(dotimes (y nlinhas)
+			(setf val (aref array y x))
+			(cond ((equal val 9)
 				(setf restList(append restList (list   
-					(cria-restricao (boarders x y nlinhas ncolunas) 
-					(cria-restr val (boarders x y nlinhas ncolunas))
-					)))))))
+					(cria-restricao (boarders y x ncolunas nlinhas) 
+					(cria-pred-9 (boarders y x ncolunas nlinhas))
+					)))))
+				((equal val 0)
+				(setf restList(append restList (list   
+					(cria-restricao (boarders y x ncolunas nlinhas) 
+					(cria-pred-0 (boarders y X ncolunas nlinhas))
+					)))))
+				((not (null val))
+				(setf restList(append restList (list   
+					(cria-restricao (boarders y x ncolunas nlinhas) 
+					(cria-pred-geral val (boarders y x ncolunas nlinhas))
+					))))))))
 	(cria-psr varList (copy-list domList) restList)))
 
 ; psr->fill-a-pix(psr int int) - Receives a solved PSR and converts to Fill-a-Pix (array).
