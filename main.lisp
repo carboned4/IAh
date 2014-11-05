@@ -161,17 +161,13 @@
 
 ; psr-completo-p(psr) - Verifies if all variables have a value.
 (defun psr-completo-p(psr)
-	(let ((var-list (psr-lista-var psr)))
-		(loop do
-			(when (equal (var-valor (first var-list)) NAO-ATRIBUIDA)
-				(return-from psr-completo-p NIL))
-			(setf var-list (rest var-list))
-		while(not(null var-list)))
-	T))
+	(cond ((null (psr-variaveis-nao-atribuidas psr)) 
+			T)
+		(T 
+			NIL)))
 
 ; psr-consistente-p(psr) - Verifies if the CSP is consistent (VERIFIES ALL RESTRICTIONS).
 (defun psr-consistente-p(psr)
-	
 	(cond ((equal (psr-lista-restr psr) SEM-RESTRICOES) (return-from psr-consistente-p (values T 0))))
 	(let ((count 0) (restr (psr-lista-restr psr)))								;All restrictions.
 		(dolist (restricao restr NIL)
@@ -266,27 +262,27 @@ boarderList
 			(dolist (ele lis NIL)
 					(when (null (psr-variavel-valor psr ele)) (setf aux2 T) (return))
 					(setf aux (+ (psr-variavel-valor psr ele) aux)))
-				(cond (aux2 T)
-					((equal aux cmp) T)
-					(T NIL)))))
+				(cond (aux2 (setf aux2 -1) (setf aux 0) T)
+					((equal aux cmp) (setf aux 0) T)
+					(T (setf aux 0) NIL)))))
 					
 (defun cria-pred-9 (lista)
-	(let ((aux -1) (lis lista))
+	(let ((aux -1) (aux2 NIL) (lis lista))
 		#'(lambda (psr)
 			(dolist (ele lis NIL)
 					(when (null (psr-variavel-valor psr ele)) (setf aux T)  (return))
 					(when (equal 0 (psr-variavel-valor psr ele)) (setf aux NIL) (return)))
 					 (cond ((equal aux -1) T) 
-							(T aux)))))					 
+							(T (setf aux2 aux) (setf aux -1) aux2)))))					 
 					
 (defun cria-pred-0 (lista)
-	(let ((aux -1) (lis lista))
+	(let ((aux -1) (aux2 NIL) (lis lista))
 		#'(lambda (psr)
 			(dolist (ele lis NIL)
 					(when (null (psr-variavel-valor psr ele)) (setf aux T) (return))
 					(when (equal 1 (psr-variavel-valor psr ele)) (setf aux NIL) (return)))
 					(cond ((equal aux -1) T) 
-							(T aux)))))
+							(T (setf aux2 aux) (setf aux -1) aux2)))))
 					
 ; fill-a-pix->psr(array) - Transforms a Fill-a-Pix array-problem in a PSR.
 (defun fill-a-pix->psr (array)
@@ -369,11 +365,9 @@ boarderList
 		(return-from procura-retrocesso-simples psr)))
 	(let ((var (first (psr-variaveis-nao-atribuidas psr))) (res NIL))
 		(dolist (atr (psr-variavel-dominio psr var) NIL)
-			(write var)
 			(cond ((psr-atribuicao-consistente-p psr var atr)
 				(psr-adiciona-atribuicao! psr var atr)
 				(setf res (procura-retrocesso-simples psr))
-				(write res)
 				(cond ((not (equal res FAILURE)) (return-from procura-retrocesso-simples res)))
 				(psr-remove-atribuicao! psr var))))
 	FAILURE))
@@ -415,4 +409,6 @@ boarderList
 ;(psr-adiciona-atribuicao! p "1 1" 0)
 ;(psr-adiciona-atribuicao! p "0 2" 1)
 ;(psr-adiciona-atribuicao! p "1 2" 1)
+
+
 ;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
