@@ -4,7 +4,7 @@
 ;Andre Filipe Pardal Pires			N 76046
 ;Miguel de Oliveira Melicia Martins N 76102
 
-(load "exemplos.fas")
+;(load "exemplos.fas")
 
 ;=========================== FUNCOES AUXILIARES =============================
 ; junta(lista lista) - Function retunrs l2 append in end of l1.
