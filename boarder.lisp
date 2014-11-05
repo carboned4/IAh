@@ -7,12 +7,12 @@
 (ymax (min (+ y 1) (- ncolunas 1)))
 (boarderList (make-list (* (- (+ xmax 1) (+ xmin 0)) (- (+ ymax 1) (+ ymin 0))))))
 
-(loop for a from xmin to xmax
+(loop for a from ymin to ymax
       do(
-      loop for b from ymin to ymax      
+      loop for b from xmin to xmax      
       
       do(
-         setf (nth i boarderList) (format nil "~D ~D" a b))
+         setf (nth i boarderList) (format nil "~D ~D" b a))
       do(setf i (+ i 1))    
       )
       )
