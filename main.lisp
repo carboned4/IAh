@@ -4,7 +4,7 @@
 ;Andre Filipe Pardal Pires			N 76046
 ;Miguel de Oliveira Melicia Martins N 76102
 
-(load "exemplos.fas")
+;(load "exemplos.fas")
 
 ;=========================== FUNCOES AUXILIARES =============================
 ; junta(lista lista) - Function retunrs l2 append in end of l1.
@@ -238,21 +238,26 @@
 ; FUNCOES AUXILIARES
 
 (defun boarders (x y nlinhas ncolunas)
-	(let* (
-	(i 0)       
-	(xmin (max (- x 1) 0))
-	(xmax (min (+ x 1) (- nlinhas 1)))
-	(ymin (max (- y 1) 0))
-	(ymax (min (+ y 1) (- ncolunas 1)))
-	(boarderList (make-list (* (- (+ xmax 1) (+ xmin 0)) (- (+ ymax 1) (+ ymin 0))))))
+(let* (
+(i 0)       
+(xmin (max (- x 1) 0))
+(xmax (min (+ x 1) (- nlinhas 1)))
+(ymin (max (- y 1) 0))
+(ymax (min (+ y 1) (- ncolunas 1)))
+(boarderList (make-list (* (- (+ xmax 1) (+ xmin 0)) (- (+ ymax 1) (+ ymin 0))))))
 
-	(loop for a from xmin to xmax
-		  do(
-		  loop for b from ymin to ymax      
-		  do(
-			 setf (nth i boarderList) (format nil "~D ~D" a b))
-		  do(setf i (+ i 1))))    	 
-	boarderList))
+(loop for a from xmin to xmax
+      do(
+      loop for b from ymin to ymax      
+      
+      do(
+         setf (nth i boarderList) (format nil "~D ~D" a b))
+      do(setf i (+ i 1))    
+      )
+      )
+
+boarderList
+))
 
 
 (defun cria-pred-geral (v lista)
@@ -262,7 +267,7 @@
 					(when (null (psr-variavel-valor psr ele)) (setf aux2 T) (return))
 					(setf aux (+ (psr-variavel-valor psr ele) aux)))
 				(cond (aux2 T)
-					((<= aux cmp) T)
+					((equal aux cmp) T)
 					(T NIL)))))
 					
 (defun cria-pred-9 (lista)
@@ -299,23 +304,23 @@
 	(setf (nth i varList) (format nil "~D ~D" b a))
 	(setf i (+ i 1))))
     
-	(dotimes (x ncolunas)   
-		(dotimes (y nlinhas)
-			(setf val (aref array y x))
+	(dotimes (y ncolunas)   
+		(dotimes (x nlinhas)
+			(setf val (aref array x y))
 			(cond ((equal val 9)
 				(setf restList(append restList (list   
-					(cria-restricao (boarders y x ncolunas nlinhas) 
-					(cria-pred-9 (boarders y x ncolunas nlinhas))
+					(cria-restricao (boarders x y nlinhas ncolunas) 
+					(cria-pred-9 (boarders x y  nlinhas ncolunas))
 					)))))
 				((equal val 0)
 				(setf restList(append restList (list   
-					(cria-restricao (boarders y x ncolunas nlinhas) 
-					(cria-pred-0 (boarders y X ncolunas nlinhas))
+					(cria-restricao (boarders x y nlinhas ncolunas) 
+					(cria-pred-0 (boarders x y nlinhas ncolunas))
 					)))))
 				((not (null val))
 				(setf restList(append restList (list   
-					(cria-restricao (boarders y x ncolunas nlinhas) 
-					(cria-pred-geral val (boarders y x ncolunas nlinhas))
+					(cria-restricao (boarders x y nlinhas ncolunas) 
+					(cria-pred-geral val (boarders x y nlinhas ncolunas))
 					))))))))
 	(cria-psr varList (copy-list domList) restList)))
 
@@ -360,7 +365,7 @@
 ; procura-retrocesso-simples(atribuicao psr) - Receives a PSR and search for a solution.
 (defun procura-retrocesso-simples(psr)
 	(cond ((psr-completo-p psr) 
-		psr))
+		(return-from procura-retrocesso-simples psr)))
 	(let ((var (first (psr-variaveis-nao-atribuidas psr))) (res NIL))
 		(dolist (atr (psr-variavel-dominio psr var) NIL)
 			(cond ((psr-atribuicao-consistente-p psr var atr)
