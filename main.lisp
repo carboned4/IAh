@@ -4,7 +4,7 @@
 ;Andre Filipe Pardal Pires			N 76046
 ;Miguel de Oliveira Melicia Martins N 76102
 
-;(load "exemplos.fas")
+(load "exemplos.fas")
 
 ;=========================== FUNCOES AUXILIARES =============================
 ; junta(lista lista) - Function retunrs l2 append in end of l1.
@@ -262,7 +262,7 @@ boarderList
 			(dolist (ele lis NIL)
 					(when (null (psr-variavel-valor psr ele)) (setf aux2 T) (return))
 					(setf aux (+ (psr-variavel-valor psr ele) aux)))
-				(cond (aux2 (setf aux2 -1) (setf aux 0) T)
+				(cond ((not(equal aux2 -1)) (setf aux2 -1) (setf aux 0) T)
 					((equal aux cmp) (setf aux 0) T)
 					(T (setf aux 0) NIL)))))
 					
@@ -361,16 +361,20 @@ boarderList
 ;)
 ; procura-retrocesso-simples(atribuicao psr) - Receives a PSR and search for a solution.
 (defun procura-retrocesso-simples(psr)
-	(cond ((psr-completo-p psr) 
-		(return-from procura-retrocesso-simples psr)))
-	(let ((var (first (psr-variaveis-nao-atribuidas psr))) (res NIL))
+	(let ((aux 0) (aux1 0) (res0 NIL) (test NIL) (var (first (psr-variaveis-nao-atribuidas psr))) (res NIL))
+		(cond ((psr-completo-p psr) 
+			(return-from procura-retrocesso-simples (values psr aux))))
 		(dolist (atr (psr-variavel-dominio psr var) NIL)
-			(cond ((psr-atribuicao-consistente-p psr var atr)
+			(setf res0 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
+			(setf test (nth 0 res0))
+			(setf aux1 (nth 1 res0))
+			(setf aux (+ aux aux1))
+			(cond ((equal test T)
 				(psr-adiciona-atribuicao! psr var atr)
 				(setf res (procura-retrocesso-simples psr))
-				(cond ((not (equal res FAILURE)) (return-from procura-retrocesso-simples res)))
+				(cond ((not (equal res FAILURE)) (return-from procura-retrocesso-simples (values res aux))))
 				(psr-remove-atribuicao! psr var))))
-	FAILURE))
+	(values FAILURE aux)))
 
 ; resolve-simples(array) - Receives a Fill-a-Pix (array) and try solve it.
 (defun resolve-simples(arr)
@@ -382,7 +386,7 @@ boarderList
 ;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  TESTS PURPOSE ONLY  !!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-;(defvar r1)
+;(defvar r1) 
 ;(defvar r2)
 ;(defvar p1)
 ;(defvar l)
