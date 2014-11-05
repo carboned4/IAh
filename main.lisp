@@ -246,12 +246,12 @@
 (ymax (min (+ y 1) (- ncolunas 1)))
 (boarderList (make-list (* (- (+ xmax 1) (+ xmin 0)) (- (+ ymax 1) (+ ymin 0))))))
 
-(loop for a from xmin to xmax
+(loop for a from ymin to ymax
       do(
-      loop for b from ymin to ymax      
+      loop for b from xmin to xmax      
       
       do(
-         setf (nth i boarderList) (format nil "~D ~D" a b))
+         setf (nth i boarderList) (format nil "~D ~D" b a))
       do(setf i (+ i 1))    
       )
       )
@@ -293,10 +293,11 @@ boarderList
   (let*(
 	(i 0)
 	(val NIL)
+	(dom (list 0 1))
 	(restList '())
 	(nlinhas (first(array-dimensions array)))             
 	(ncolunas (second(array-dimensions array)))    
-	(domList (make-list (* nlinhas ncolunas) :initial-element (list 0 1)))
+	(domList (make-list (* nlinhas ncolunas) :initial-element (copy-list dom)))
 	(varlist (make-list (* nlinhas ncolunas) :initial-element (list -1 -1))))        
 	   
 	(dotimes (a nlinhas)   
@@ -322,7 +323,7 @@ boarderList
 					(cria-restricao (boarders x y nlinhas ncolunas) 
 					(cria-pred-geral val (boarders x y nlinhas ncolunas))
 					))))))))
-	(cria-psr varList (copy-list domList) restList)))
+	(cria-psr varList domList restList)))
 
 ; psr->fill-a-pix(psr int int) - Receives a solved PSR and converts to Fill-a-Pix (array).
 (defun psr->fill-a-pix(psr int1 int2)
@@ -368,10 +369,12 @@ boarderList
 		(return-from procura-retrocesso-simples psr)))
 	(let ((var (first (psr-variaveis-nao-atribuidas psr))) (res NIL))
 		(dolist (atr (psr-variavel-dominio psr var) NIL)
+			(write var)
 			(cond ((psr-atribuicao-consistente-p psr var atr)
 				(psr-adiciona-atribuicao! psr var atr)
 				(setf res (procura-retrocesso-simples psr))
-				(cond ((not (equal res FAILURE)) (return-from procura-retrocesso-simples psr)))
+				(write res)
+				(cond ((not (equal res FAILURE)) (return-from procura-retrocesso-simples res)))
 				(psr-remove-atribuicao! psr var))))
 	FAILURE))
 
