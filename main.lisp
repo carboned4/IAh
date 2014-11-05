@@ -4,7 +4,7 @@
 ;Andre Filipe Pardal Pires			N 76046
 ;Miguel de Oliveira Melicia Martins N 76102
 
-;(load "exemplos.fas")
+(load "exemplos.fas")
 
 ;=========================== FUNCOES AUXILIARES =============================
 ; junta(lista lista) - Function retunrs l2 append in end of l1.
@@ -266,6 +266,15 @@
 boarderList
 ))
 
+(defun cria-restr (v lista)
+	(let ((aux 0) (cmp v) (lis lista))
+		#'(lambda (psr)
+			(dolist (ele lis NIL)
+					(when (null (psr-variavel-valor psr ele)) (return T))
+					(setf aux (+ (psr-variavel-valor psr ele) aux)))
+				(cond ((<= aux cmp) T)
+					(T NIL)))))
+					
 ; fill-a-pix->psr(array) - Transforms a Fill-a-Pix array-problem in a PSR.
 (defun fill-a-pix->psr (array)
   (let*(
@@ -288,14 +297,8 @@ boarderList
 			(if (not  (null val))
 				(setf restList(append restList (list   
 					(cria-restricao (boarders x y nlinhas ncolunas) 
-					#'(lambda (psr)
-						(let ((aux 0) (cmp val) (vars (boarders x y nlinhas ncolunas)))
-							(dolist (ele vars NIL)
-								(when (null (psr-variavel-valor psr ele)) (return T))
-							
-							    (setf aux (+ (psr-variavel-valor psr ele) aux)))
-							(cond ((<= aux cmp) T)
-								(T NIL)))))))))))
+					(cria-restr val (boarders x y nlinhas ncolunas))
+					)))))))
 	(cria-psr varList (copy-list domList) restList)))
 
 ; psr->fill-a-pix(psr int int) - Receives a solved PSR and converts to Fill-a-Pix (array).
@@ -354,38 +357,36 @@ boarderList
 	(let ((res (procura-retrocesso-simples (fill-a-pix->psr arr))))
 		(cond ((equal res FAILURE)
 			NIL)
-			(T (psr->fill-a-pix arr (array-dimension arr 0) (array-dimension arr 1))))))
+			(T (psr->fill-a-pix res (array-dimension arr 0) (array-dimension arr 1))))))
 
 ;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  TESTS PURPOSE ONLY  !!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-	
+;(defvar r1)
+;(defvar r2)
+;(defvar p1)
+;(defvar l)
+;(defvar p)
+;(setf r1 (cria-restricao '("aa" "cc" "fa" "dd") #'(lambda(psr) psr T)))
+;(setf r2 (cria-restricao '("aa" "cc" "ggg") #'(lambda(psr) psr NIL)))
+;(setf l (list r1 r2))
 
-(defvar r1)
-(defvar r2)
-(defvar p1)
-(defvar l)
-(defvar p)
-(setf r1 (cria-restricao '("aa" "cc" "fa" "dd") #'(lambda(psr) psr T)))
-(setf r2 (cria-restricao '("aa" "cc" "ggg") #'(lambda(psr) psr NIL)))
-(setf l (list r1 r2))
+;(setf p1 (cria-psr '("0 0" "1 0" "2 0" "0 1" "1 1" "2 1" "0 2" "1 2" "2 2") '((1) (1) (1) (0) (1) (1) (1) (1) (1)) l))
+;(psr-adiciona-atribuicao! p1 "0 0" 1)
+;(psr-adiciona-atribuicao! p1 "1 0" 0)
+;(psr-adiciona-atribuicao! p1 "2 0" 1)
+;(psr-adiciona-atribuicao! p1 "0 1" 0)
+;(psr-adiciona-atribuicao! p1 "1 1" 1)
+;(psr-adiciona-atribuicao! p1 "2 1" 1)
+;(psr-adiciona-atribuicao! p1 "0 2" 0)
+;(psr-adiciona-atribuicao! p1 "1 2" 1)
+;(psr-adiciona-atribuicao! p1 "2 2" 0)
 
-(setf p1 (cria-psr '("0 0" "1 0" "2 0" "0 1" "1 1" "2 1" "0 2" "1 2" "2 2") '((1) (1) (1) (0) (1) (1) (1) (1) (1)) l))
-(psr-adiciona-atribuicao! p1 "0 0" 1)
-(psr-adiciona-atribuicao! p1 "1 0" 0)
-(psr-adiciona-atribuicao! p1 "2 0" 1)
-(psr-adiciona-atribuicao! p1 "0 1" 0)
-(psr-adiciona-atribuicao! p1 "1 1" 1)
-(psr-adiciona-atribuicao! p1 "2 1" 1)
-(psr-adiciona-atribuicao! p1 "0 2" 0)
-(psr-adiciona-atribuicao! p1 "1 2" 1)
-(psr-adiciona-atribuicao! p1 "2 2" 0)
-
-(setf p (fill-a-pix->psr #2A((1 NIL 3) (4 5 6))))
-(psr-adiciona-atribuicao! p "0 0" 1)
-(psr-adiciona-atribuicao! p "0 1" 0)
-(psr-adiciona-atribuicao! p "1 0" 1)
-(psr-adiciona-atribuicao! p "1 1" 0)
-(psr-adiciona-atribuicao! p "0 2" 1)
-(psr-adiciona-atribuicao! p "1 2" 1)
+;(setf p (fill-a-pix->psr #2A((1 NIL 3) (4 5 6))))
+;(psr-adiciona-atribuicao! p "0 0" 1)
+;(psr-adiciona-atribuicao! p "0 1" 0)
+;(psr-adiciona-atribuicao! p "1 0" 1)
+;(psr-adiciona-atribuicao! p "1 1" 0)
+;(psr-adiciona-atribuicao! p "0 2" 1)
+;(psr-adiciona-atribuicao! p "1 2" 1)
 ;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
