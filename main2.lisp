@@ -4,7 +4,7 @@
 ;Andre Filipe Pardal Pires			N 76046
 ;Miguel de Oliveira Melicia Martins N 76102
 
-(load "exemplos.fas")
+;(load "exemplos.fas")
 
 ;=========================== FUNCOES AUXILIARES =============================
 ; junta(lista lista) - Function retunrs l2 append in end of l1.
@@ -287,7 +287,8 @@
 					(when (equal 1 (psr-variavel-valor psr ele)) (setf aux NIL) (return)))
 					(cond ((equal aux -1) T) 
 							(T (setf aux2 aux) (setf aux -1) aux2)))))
-					
+
+							
 ; fill-a-pix->psr(array) - Transforms a Fill-a-Pix array-problem in a PSR.
 (defun fill-a-pix->psr (array)
   (let*(
@@ -334,9 +335,8 @@
 				
 
 ;========================= FIM FUNCOES DO TABULEIRO =========================
-
 ;============================================================================
-
+;============================================================================
 ;========================= FUNCOES PARA RESOLUCAO CSP =======================
 
 ;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! PSEUDO-CODE !!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -356,7 +356,7 @@
 
 (defconstant FAILURE -1)
 
-; procura-retrocesso-simples(atribuicao psr) - Receives a PSR and search for a solution using only BackTracking Search.
+; procura-retrocesso-simples(psr) - Receives a PSR and search for a solution using only BackTracking Search.
 (defun procura-retrocesso-simples(psr)
 	(let ((numTests 0) (aux1 0) (res NIL) (res1 NIL) (test NIL) (var (first (psr-variaveis-nao-atribuidas psr))))
 		(cond ((psr-completo-p psr) 
@@ -383,4 +383,147 @@
 			NIL)
 			(T (psr->fill-a-pix res (array-dimension arr 0) (array-dimension arr 1))))))
 
-;========================= FIM FUNCOES PARA RESOLUCAO CSP =======================
+;############################################################################################################
+;################################ FUNCOES 2º PARTE PROJECTO ################################################# 
+;############################################################################################################			
+
+; varMoreRestr(psr) - 
+(defun varMoreRestr(psr)
+	(let ((varList (psr-variaveis-nao-atribuidas psr)) (maximumVar NIL) (aux 0) (maximumNum NIL))
+		(setf maximumVar (first varList))
+		(setf maximumNum (length (psr-variavel-restricoes psr maximumVar)))
+		(dolist (var varList NIL)
+			(setf aux (length (psr-variavel-restricoes psr var)))
+			(cond ((< maximumNum aux)
+				(setf maximumNum aux) (setf maximumVar var))))
+	maximumVar))
+			
+; procura-retrocesso-grau(psr) - Backtracking Search using Maximum Degree Heuristic.
+(defun procura-retrocesso-grau(psr)
+	(let ((numTests 0) (aux1 0) (res NIL) (res1 NIL) (test NIL) (var (varMoreRestr psr)))
+		(cond ((psr-completo-p psr) 
+			(return-from procura-retrocesso-grau (values psr numTests))))
+		(dolist (atr (psr-variavel-dominio psr var) NIL)
+			(setf res1 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
+			(setf test (nth 0 res1))
+			(setf aux1 (nth 1 res1))
+			(setf numTests (+ numTests aux1))
+			(cond ((equal test T)
+				(psr-adiciona-atribuicao! psr var atr)
+				(setf res1 (multiple-value-list (procura-retrocesso-grau psr)))
+				(setf res (nth 0 res1))
+				(setf aux1 (nth 1 res1))
+				(setf numTests (+ numTests aux1))
+				(cond ((not (equal res FAILURE)) (return-from procura-retrocesso-grau (values res numTests))))
+				(psr-remove-atribuicao! psr var))))
+	(values FAILURE numTests)))
+
+;==========================================================================================	
+
+; calcMRV(psr) - Returns MRV variable.
+; FIX-ME - DEVIA RETORNAR A QUANTIDADE DE TESTES DESTA PARA A PROCURA.
+(defun calcMRV(psr)
+	(let ((varList (psr-variaveis-nao-atribuidas psr)) (maximumVar NIL) (aux 0) (maximumNum NIL))
+		(setf maximumVar (first varList))
+		(dolist (ele (psr-variavel-dominio psr maximumVar) NIL)
+			(cond ((psr-atribuicao-consistente-p psr maximumVar ele)
+				(setf aux (1+ aux)))))
+		(setf maximumNum aux)
+		(setf aux 0)
+		(setf varList (rest varList))
+		(dolist (var varList NIL)
+			(dolist (ele (psr-variavel-dominio psr var) NIL)
+				(cond ((psr-atribuicao-consistente-p psr var ele)
+					(setf aux (1+ aux)))))				
+			(cond ((> maximumNum aux)
+				(setf maximumNum aux) (setf maximumVar var) (setf aux 0))))
+	maximumVar))
+		
+	
+; procura-retocesso-fc-mrv(psr) - Backtracking Search using Forward Checking mechanism 
+; and MRV (Minimum Remaining Value) Heuristic.
+(defun procura-retrocesso-fc-mrv(psr)
+	(let ((numTests 0) (aux1 0) (res NIL) (res1 NIL) (test NIL) (var (calcMRV psr)))
+		(cond ((psr-completo-p psr) 
+			(return-from procura-retrocesso-fc-mrv (values psr numTests))))
+		(dolist (atr (psr-variavel-dominio psr var) NIL)
+			(setf res1 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
+			(setf test (nth 0 res1))
+			(setf aux1 (nth 1 res1))
+			(setf numTests (+ numTests aux1))
+			(cond ((equal test T)
+				(psr-adiciona-atribuicao! psr var atr)
+				(setf res1 (multiple-value-list (procura-retrocesso-fc-mrv psr)))
+				(setf res (nth 0 res1))
+				(setf aux1 (nth 1 res1))
+				(setf numTests (+ numTests aux1))
+				(cond ((not (equal res FAILURE)) (return-from procura-retrocesso-fc-mrv (values res numTests))))
+				(psr-remove-atribuicao! psr var))))
+	(values FAILURE numTests)))
+
+;==========================================================================================	
+
+
+; procura-retrocesso-mac-mrv(psr) - Solves CSP using MAC (Maintain Arc Consistency) mechanim and MRV
+; heuristic.
+(defun procura-retrocesso-mac-mrv(psr)
+psr)
+
+
+
+;==========================================================================================
+
+
+
+; resolve-best(array) - Receives and Fill-a-Pix array and use best algorythm to solve it.
+(defun resolve-best(array)
+array)
+	
+			
+;========================= FIM FUNCOES PARA RESOLUCAO CSP =================================================
+(defvar puzzle1)
+(defvar puzzle2)
+(defvar puzzle5)
+(defvar psr5)
+(defvar psr2)
+(defvar psr1)
+
+(setf puzzle1 (make-array (list 5 5) :initial-contents
+	'((NIL NIL 1 NIL NIL)
+	  (NIL 1 NIL NIL 5)
+	  (1 NIL NIL NIL 6)
+	  (NIL NIL NIL 9 NIL)
+	  (NIL 5 6 NIL NIL))))
+
+(setf puzzle2 (make-array (list 10 10) :initial-contents
+	'((NIL 2 3 NIL NIL 0 NIL NIL NIL NIL)
+	  (NIL NIL NIL NIL 3 NIL 2 NIL NIL 6)
+	  (NIL NIL 5 NIL 5 3 NIL 5 7 4)
+	  (NIL 4 NIL 5 NIL 5 NIL 6 NIL 3)
+	  (NIL NIL 4 NIL 5 NIL 6 NIL NIL 3)
+	  (NIL NIL NIL 2 NIL 5 NIL NIL NIL NIL)
+	  (4 NIL 1 NIL NIL NIL 1 1 NIL NIL)
+	  (4 NIL 1 NIL NIL NIL 1 NIL 4 NIL)
+	  (NIL NIL NIL NIL 6 NIL NIL NIL NIL 4)
+	  (NIL 4 4 NIL NIL NIL NIL 4 NIL NIL))))
+
+(setf puzzle5 (make-array (list 15 15) :initial-contents
+	'((0 NIL NIL 4 3 2 1 NIL NIL NIL NIL NIL 3 NIL NIL)
+	  (NIL NIL 5 NIL NIL 4 NIL NIL 4 4 NIL NIL NIL NIL 3)
+	  (NIL 5 4 5 4 5 5 NIL 5 3 NIL 1 2 NIL 3)
+	  (4 NIL NIL NIL 4 NIL NIL 4 2 NIL 1 NIL NIL NIL NIL)
+	  (NIL NIL 5 4 NIL 2 2 NIL 1 0 NIL NIL 7 5 NIL)
+	  (NIL NIL NIL 5 NIL NIL 0 NIL NIL NIL NIL 4 5 NIL 2)
+	  (4 NIL NIL 5 4 2 0 0 NIL NIL NIL 5 6 NIL NIL)
+	  (5 NIL NIL 6 5 NIL NIL NIL NIL NIL 3 3 3 NIL 3)
+	  (NIL NIL 5 NIL 5 3 NIL NIL NIL NIL NIL NIL 3 NIL NIL)
+	  (5 NIL NIL 6 5 NIL 3 5 NIL 6 NIL NIL 0 NIL 0)
+	  (NIL NIL 5 NIL 4 3 2 4 5 NIL 4 NIL NIL 1 NIL)
+	  (NIL 7 NIL NIL 5 NIL NIL 1 NIL 5 5 5 NIL NIL NIL)
+	  (NIL NIL 6 4 4 4 3 1 2 4 NIL NIL 6 4 NIL)
+	  (NIL 5 NIL 6 NIL NIL NIL NIL NIL 4 6 NIL NIL NIL NIL)
+	  (NIL NIL NIL NIL NIL NIL 3 2 0 NIL 4 4 3 NIL 2))))
+
+(setf psr2 (fill-a-pix->psr puzzle2))
+(setf psr5 (fill-a-pix->psr puzzle5))
+(setf psr1 (fill-a-pix->psr puzzle1))	  
