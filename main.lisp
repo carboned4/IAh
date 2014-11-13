@@ -6,7 +6,7 @@
 
 (load "exemplos.fas")
 
-;=========================== FUNCOES AUXILIARES =============================
+;===========================  FUNCOES AUXILIARES =============================
 ; junta(lista lista) - Function retunrs l2 append in end of l1.
 (defun junta (l1 l2)
 	"Junta duas listas"

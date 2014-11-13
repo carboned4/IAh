@@ -387,13 +387,15 @@
 ;################################ FUNCOES 2º PARTE PROJECTO ################################################# 
 ;############################################################################################################			
 
-; varMoreRestr(psr) - 
+; varMoreRestr(psr) - Returns the more constrained variable.
 (defun varMoreRestr(psr)
 	(let ((varList (psr-variaveis-nao-atribuidas psr)) (maximumVar NIL) (aux 0) (maximumNum NIL))
 		(setf maximumVar (first varList))
 		(setf maximumNum (length (psr-variavel-restricoes psr maximumVar)))
 		(dolist (var varList NIL)
 			(setf aux (length (psr-variavel-restricoes psr var)))
+			(print var)
+			(print aux)
 			(cond ((< maximumNum aux)
 				(setf maximumNum aux) (setf maximumVar var))))
 	maximumVar))
@@ -464,7 +466,7 @@
 ;==========================================================================================	
 
 
-; procura-retrocesso-mac-mrv(psr) - Solves CSP using MAC (Maintain Arc Consistency) mechanim and MRV
+; procura-retrocesso-mac-mrv(psr) - Solves CSP using MAC (Maintain Arc Consistency) mechanism and MRV
 ; heuristic.
 (defun procura-retrocesso-mac-mrv(psr)
 psr)
@@ -484,9 +486,11 @@ array)
 (defvar puzzle1)
 (defvar puzzle2)
 (defvar puzzle5)
+(defvar puzzle1.1)
 (defvar psr5)
 (defvar psr2)
 (defvar psr1)
+(defvar psr1.1)
 
 (setf puzzle1 (make-array (list 5 5) :initial-contents
 	'((NIL NIL 1 NIL NIL)
@@ -495,6 +499,14 @@ array)
 	  (NIL NIL NIL 9 NIL)
 	  (NIL 5 6 NIL NIL))))
 
+(setf puzzle1.1 (make-array (list 5 5) :initial-contents
+	'((NIL 2 3 NIL NIL)
+	  (NIL NIL NIL NIL NIL)
+	  (NIL NIL 5 NIL NIL)
+	  (NIL 4 NIL 5 NIL)
+	  (NIL NIL 4 NIL NIL)
+	  )))
+	  
 (setf puzzle2 (make-array (list 10 10) :initial-contents
 	'((NIL 2 3 NIL NIL 0 NIL NIL NIL NIL)
 	  (NIL NIL NIL NIL 3 NIL 2 NIL NIL 6)
@@ -524,6 +536,7 @@ array)
 	  (NIL 5 NIL 6 NIL NIL NIL NIL NIL 4 6 NIL NIL NIL NIL)
 	  (NIL NIL NIL NIL NIL NIL 3 2 0 NIL 4 4 3 NIL 2))))
 
+(setf psr1.1 (fill-a-pix->psr puzzle1.1))
 (setf psr2 (fill-a-pix->psr puzzle2))
 (setf psr5 (fill-a-pix->psr puzzle5))
 (setf psr1 (fill-a-pix->psr puzzle1))	  
