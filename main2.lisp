@@ -517,7 +517,7 @@
 ; procura-retocesso-fc-mrv(psr) - Backtracking Search using Forward Checking mechanism 
 ; and MRV (Minimum Remaining Value) Heuristic.
 (defun procura-retrocesso-fc-mrv(psr)
-	(let ((testesTotais 0) (aux1 0) (dom NIL) (res NIL) (res1 NIL) (test NIL) (var (MRV psr)))
+	(let ((testesTotais 0) (aux1 0) (dom NIL) (res NIL) (res1 NIL) (test NIL) (var (MRV psr)) (inf NIL))
 		(cond ((psr-completo-p psr) 
 			(return-from procura-retrocesso-fc-mrv (values psr testesTotais))))
 			
@@ -531,7 +531,8 @@
 				(psr-adiciona-atribuicao! psr var atr)
 				(setf res1 (multiple-value-list (forward-checking psr var)))
 				(setf testesTotais (+ testesTotais (nth 1 res1)))
-				(cond ((nth 0 res1)
+				(setf inf (nth 0 res1))
+				(cond (inf
 					(adiciona-inferencias psr (nth 0 res1))
 					(setf res1 (multiple-value-list (procura-retrocesso-fc-mrv psr)))
 					(setf res (nth 0 res1))
@@ -539,7 +540,7 @@
 					(setf testesTotais (+ testesTotais aux1))
 					(cond ((not (equal res FAILURE)) 
 						(return-from procura-retrocesso-fc-mrv (values res testesTotais))))
-					(adiciona-inferencias psr (nth 0 res1))))
+					(adiciona-inferencias psr inf)))
 				(psr-remove-atribuicao! psr var))))
 	(values FAILURE testesTotais)))
 
