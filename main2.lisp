@@ -229,11 +229,11 @@
 			(psr-adiciona-atribuicao! psr var2 aux2)
 			(values (nth 0 res) (nth 1 res))))
 				
-;========================= FIM ESTRUTURAS DE DADOS ========================
+;========================= FIM ESTRUTURAS DE DADOS ===============================
 
-;==========================================================================
+;=================================================================================
 
-;========================= FUNCOES DO TABULEIRO ===========================
+;========================= FUNCOES DO TABULEIRO ==================================
 
 ; FUNCOES AUXILIARES
 
@@ -336,8 +336,8 @@
 
 ;========================= FIM FUNCOES DO TABULEIRO =========================
 ;============================================================================
-;============================================================================
-;========================= FUNCOES PARA RESOLUCAO CSP =======================
+;#############################################################################
+;######################### FUNCOES PARA RESOLUCAO CSP ########################
 
 ;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! PSEUDO-CODE !!!!!!!!!!!!!!!!!!!!!!!!!!
 ;function BACKTRACKING-SEARCH(csp) returns a solution, or failure
@@ -383,26 +383,25 @@
 			NIL)
 			(T (psr->fill-a-pix res (array-dimension arr 0) (array-dimension arr 1))))))
 
-;############################################################################################################
-;################################ FUNCOES 2º PARTE PROJECTO ################################################# 
-;############################################################################################################			
+;################################################################################################
+;################################ FUNCOES PARTE 2 PROJECTO ######################################
+;################################################################################################			
 
-; varMoreRestr(psr) - Returns the more constrained variable.
-(defun varMoreRestr(psr)
+; maximum-degree(psr) - Returns the maximum degree variable.
+(defun maximum-degree(psr)
 	(let ((varList (psr-variaveis-nao-atribuidas psr)) (maximumVar NIL) (aux 0) (maximumNum NIL))
 		(setf maximumVar (first varList))
 		(setf maximumNum (length (psr-variavel-restricoes psr maximumVar)))
 		(dolist (var varList NIL)
 			(setf aux (length (psr-variavel-restricoes psr var)))
-			(print var)
-			(print aux)
 			(cond ((< maximumNum aux)
 				(setf maximumNum aux) (setf maximumVar var))))
 	maximumVar))
-			
+
+	
 ; procura-retrocesso-grau(psr) - Backtracking Search using Maximum Degree Heuristic.
 (defun procura-retrocesso-grau(psr)
-	(let ((numTests 0) (aux1 0) (res NIL) (res1 NIL) (test NIL) (var (varMoreRestr psr)))
+	(let ((numTests 0) (aux1 0) (res NIL) (res1 NIL) (test NIL) (var (maximum-degree psr)))
 		(cond ((psr-completo-p psr) 
 			(return-from procura-retrocesso-grau (values psr numTests))))
 		(dolist (atr (psr-variavel-dominio psr var) NIL)
@@ -422,44 +421,118 @@
 
 ;==========================================================================================	
 
-; calcMRV(psr) - Returns MRV variable.
-; FIX-ME - DEVIA RETORNAR A QUANTIDADE DE TESTES DESTA PARA A PROCURA.
-(defun calcMRV(psr)
-	(let ((varList (psr-variaveis-nao-atribuidas psr)) (maximumVar NIL) (aux 0) (maximumNum NIL))
-		(setf maximumVar (first varList))
-		(dolist (ele (psr-variavel-dominio psr maximumVar) NIL)
-			(cond ((psr-atribuicao-consistente-p psr maximumVar ele)
-				(setf aux (1+ aux)))))
-		(setf maximumNum aux)
-		(setf aux 0)
+; FUNCOES E ESTRUTURAS AUXILIARES
+; IMPORTANTE: A lista da inferencia e uma lista de tuplos (var . dominio) em que dominio e uma lista de valores.
+(defstruct inferencia (lista NIL))
+
+; MRV(psr) - Returns MRV (Minimum Remaining Value) variable.
+(defun MRV(psr)
+	(let ((varList (psr-variaveis-nao-atribuidas psr)) (select-var NIL) (minimum-domain-size NIL) (aux 0))
+		(setf select-var (first varList))
+		(setf minimum-domain-size (length (psr-variavel-dominio psr select-var)))
 		(setf varList (rest varList))
-		(dolist (var varList NIL)
-			(dolist (ele (psr-variavel-dominio psr var) NIL)
-				(cond ((psr-atribuicao-consistente-p psr var ele)
-					(setf aux (1+ aux)))))				
-			(cond ((> maximumNum aux)
-				(setf maximumNum aux) (setf maximumVar var) (setf aux 0))))
-	maximumVar))
-		
+		(dolist (ele varList NIL)
+			(setf aux (length (psr-variavel-dominio psr ele)))
+			(cond ((< aux minimum-domain-size)
+					(setf select-var ele)
+					(setf minimum-domain-size aux))))
+	select-var))
+
+; get-dominio-inferencias(var inferencias) -
+(defun get-dominio-inferencias(var inferencias)
+	(let ((lista (inferencia-lista inferencias)))
+		(dolist (ele lista NIL)
+			(cond ((equal var (car ele))
+					(return-from get-dominio-inferencias (cdr ele)))))
+		NIL))
 	
+; set-dominio-inferencias(var inferencias) -
+(defun set-dominio-inferencias(var dominio inferencias)
+	(let ((lista (inferencia-lista inferencias)))
+		(dolist (ele lista NIL)
+				(cond ((equal var (car ele))
+						(setf (cdr ele) dominio)
+						(return-from set-dominio-inferencias))))
+		(setf (inferencia-lista inferencias) (cons (cons var dominio) (inferencia-lista inferencias)))))
+	
+; revise(psr x y inferencias) - 
+(defun revise(psr x y inferencias)
+	(let ((testesTotais 0) (revised NIL) (dominio-x NIL) (dominio-y NIL) (novo-dominio-x NIL) 
+	(foundConsistentValue NIL) (aux NIL))
+		(setf aux (get-dominio-inferencias x inferencias))
+		(if aux (setf dominio-x aux)
+				  (setf dominio-x (copy-list (psr-variavel-dominio psr x))))
+		(setf novo-dominio-x dominio-x)
+		(setf aux (get-dominio-inferencias y inferencias))
+		(if (not (membro y (psr-variaveis-nao-atribuidas psr))) (setf dominio-y (list (psr-variavel-valor psr y)))
+			(if aux (setf dominio-y aux)
+						(setf dominio-y (copy-list (psr-variavel-dominio psr y)))))
+			
+		(dolist (vx dominio-x NIL)
+			(dolist (vy dominio-y NIL)
+				(setf aux (multiple-value-list (psr-atribuicoes-consistentes-arco-p psr x vx y vy)))
+				(setf testesTotais (+ testesTotais (nth 1 aux)))
+				(cond ((nth 0 aux)
+					(setf foundConsistentValue T) (return))))
+			(cond ((not foundConsistentValue)
+				(setf revised T)
+				(setf novo-dominio-x (remove vx novo-dominio-x)))))
+		(cond (revised
+			(set-dominio-inferencias x novo-dominio-x inferencias)))
+	(values revised testesTotais)))
+
+; arcos-vizinhos-nao-atribuidos(psr var) -
+(defun arcos-vizinhos-nao-atribuidos(psr var)
+	(let ((result NIL) (var-restr (psr-variavel-restricoes psr var)) (vars-nao-atribuidas (psr-variaveis-nao-atribuidas psr)) (aux NIL))
+		(dolist (restr var-restr NIL)
+			(setf aux (restricao-variaveis restr))
+			(dolist (ele aux NIL)
+				(if (not (equal var ele))
+					(cond ((membro ele vars-nao-atribuidas)
+						(setf result (cons (cons ele var) result)))))))
+	(reverse result)))
+						
+
+; forward-checking(psr var) - 
+(defun forward-checking(psr var)
+	(let ((inferencias (make-inferencia)) (testesTotais 0) (lista-arcos (arcos-vizinhos-nao-atribuidos psr var)) (aux NIL))
+		(dolist (ele lista-arcos NIL)
+			(setf aux (multiple-value-list (revise psr (car ele) (cdr ele) inferencias)))
+			(setf testesTotais (+ testesTotais (nth 1 aux)))
+			(cond ((nth 0 aux)
+					(if (equal (length (get-dominio-inferencias (car ele) inferencias)) 0)
+						(return-from forward-checking (values NIL testesTotais))))))
+	(values inferencias testesTotais)))
+
+; adiciona-inferencias(psr inferencias) - 
+(defun 	adiciona-inferencias(psr inferencias)
+	(let ((lista (inferencia-lista inferencias)))
+		(dolist (ele lista NIL)
+			(psr-altera-dominio! psr (car ele) (cdr ele)))))
+		
 ; procura-retocesso-fc-mrv(psr) - Backtracking Search using Forward Checking mechanism 
 ; and MRV (Minimum Remaining Value) Heuristic.
 (defun procura-retrocesso-fc-mrv(psr)
-	(let ((numTests 0) (aux1 0) (res NIL) (res1 NIL) (test NIL) (var (calcMRV psr)))
+	(let ((numTests 0) (aux1 0) (aux2 NIL) (res NIL) (res1 NIL) (test NIL) (var (MRV psr)))
 		(cond ((psr-completo-p psr) 
 			(return-from procura-retrocesso-fc-mrv (values psr numTests))))
-		(dolist (atr (psr-variavel-dominio psr var) NIL)
+		(setf aux2 (psr-variavel-dominio psr var))
+		(dolist (atr aux2 NIL)
 			(setf res1 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
 			(setf test (nth 0 res1))
 			(setf aux1 (nth 1 res1))
 			(setf numTests (+ numTests aux1))
 			(cond ((equal test T)
 				(psr-adiciona-atribuicao! psr var atr)
-				(setf res1 (multiple-value-list (procura-retrocesso-fc-mrv psr)))
-				(setf res (nth 0 res1))
-				(setf aux1 (nth 1 res1))
-				(setf numTests (+ numTests aux1))
-				(cond ((not (equal res FAILURE)) (return-from procura-retrocesso-fc-mrv (values res numTests))))
+				(setf res1 (forward-checking psr var))
+				(cond ((nth 0 res1)
+					(adiciona-inferencias psr (nth 0 res1))
+					(setf res1 (multiple-value-list (procura-retrocesso-fc-mrv psr)))
+					(setf res (nth 0 res1))
+					(setf aux1 (nth 1 res1))
+					(setf numTests (+ numTests aux1))
+					(cond ((not (equal res FAILURE)) 
+						(return-from procura-retrocesso-fc-mrv (values res numTests))))))
 				(psr-remove-atribuicao! psr var))))
 	(values FAILURE numTests)))
 
@@ -483,6 +556,7 @@ array)
 	
 			
 ;========================= FIM FUNCOES PARA RESOLUCAO CSP =================================================
+
 (defvar puzzle1)
 (defvar puzzle2)
 (defvar puzzle5)
