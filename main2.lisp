@@ -389,24 +389,26 @@
 
 ; maximum-degree(psr) - Returns the maximum degree variable.
 (defun maximum-degree(psr)
-	(let ((varList (psr-variaveis-nao-atribuidas psr)) (maximumVar NIL) (aux 0) (maximumNum -1))
+	(let ((varList  (psr-variaveis-nao-atribuidas psr)) (maximumVar NIL) (aux 0) (maximumNum -1))
 		(dolist (var varList NIL)
+			(setf aux 0)
 			(dolist (restr (psr-variavel-restricoes psr var) NIL)
 				(dolist (ele (restricao-variaveis restr) NIL)
 					(cond ((and (not (equal var ele)) (membro ele (psr-variaveis-nao-atribuidas psr)))
-						(setf aux (+ aux 1)) (return)))))
+						(setf aux (1+ aux)) (return)))))
 			(cond ((< maximumNum aux)
-				(setf maximumNum aux) (setf maximumVar var)))
-			(setf aux 0))
+				(setf maximumNum aux) (setf maximumVar var))))
 	maximumVar))
 
 	
 ; procura-retrocesso-grau(psr) - Backtracking Search using Maximum Degree Heuristic.
 (defun procura-retrocesso-grau(psr)
-	(let ((numTests 0) (aux1 0) (res NIL) (res1 NIL) (test NIL) (var (maximum-degree psr)))
+	(let ((numTests 0) (aux1 0) (res NIL) (res1 NIL) (test NIL) (var NIL) (aux2 NIL))
 		(cond ((psr-completo-p psr) 
 			(return-from procura-retrocesso-grau (values psr numTests))))
-		(dolist (atr (psr-variavel-dominio psr var) NIL)
+		(setf var (maximum-degree psr))
+		(setf aux2 (psr-variavel-dominio psr var))
+		(dolist (atr aux2 NIL)
 			(setf res1 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
 			(setf test (nth 0 res1))
 			(setf aux1 (nth 1 res1))
