@@ -389,10 +389,11 @@
 
 ; maximum-degree(psr) - Returns the maximum degree variable.
 (defun maximum-degree(psr)
-	(let ((varList  (psr-variaveis-nao-atribuidas psr)) (maximumVar NIL) (aux 0) (maximumNum -1))
+	(let ((varList  (psr-variaveis-nao-atribuidas psr)) (maximumVar NIL) (aux 0) (aux2 NIL) (maximumNum -1))
 		(dolist (var varList NIL)
 			(setf aux 0)
-			(dolist (restr (psr-variavel-restricoes psr var) NIL)
+			(setf aux2 (psr-variavel-restricoes psr var))
+			(dolist (restr aux2 NIL)
 				(dolist (ele (restricao-variaveis restr) NIL)
 					(cond ((and (not (equal var ele)) (membro ele (psr-variaveis-nao-atribuidas psr)))
 						(setf aux (1+ aux)) (return)))))
