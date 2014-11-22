@@ -301,9 +301,9 @@
 	(domList (make-list (* nlinhas ncolunas) :initial-element (copy-list dom)))
 	(varlist (make-list (* nlinhas ncolunas) :initial-element (list -1 -1))))        	   
 	(dotimes (a nlinhas)   
-	(dotimes (b ncolunas)      
-	(setf (nth i varList) (format nil "~D ~D" b a))
-	(setf i (+ i 1)))) 
+		(dotimes (b ncolunas)      
+			(setf (nth i varList) (format nil "~D ~D" b a))
+			(setf i (+ i 1)))) 
 	(dotimes (y ncolunas)   
 		(dotimes (x nlinhas)
 			(setf val (aref array x y))
@@ -389,11 +389,10 @@
 
 ; maximum-degree(psr) - Returns the maximum degree variable.
 (defun maximum-degree(psr)
-	(let ((varList  (psr-variaveis-nao-atribuidas psr)) (maximumVar NIL) (aux 0) (aux2 NIL) (maximumNum -1))
+	(let ((varList  (psr-variaveis-nao-atribuidas psr)) (maximumVar NIL) (aux 0) (maximumNum -1))
 		(dolist (var varList NIL)
 			(setf aux 0)
-			(setf aux2 (psr-variavel-restricoes psr var))
-			(dolist (restr aux2 NIL)
+			(dolist (restr (psr-variavel-restricoes psr var) NIL)
 				(dolist (ele (restricao-variaveis restr) NIL)
 					(cond ((and (not (equal var ele)) (membro ele (psr-variaveis-nao-atribuidas psr)))
 						(setf aux (1+ aux)) (return)))))
@@ -404,12 +403,11 @@
 	
 ; procura-retrocesso-grau(psr) - Backtracking Search using Maximum Degree Heuristic.
 (defun procura-retrocesso-grau(psr)
-	(let ((numTests 0) (aux1 0) (res NIL) (res1 NIL) (test NIL) (var NIL) (aux2 NIL))
+	(let ((numTests 0) (aux1 0) (res NIL) (res1 NIL) (test NIL) (var NIL))
 		(cond ((psr-completo-p psr) 
 			(return-from procura-retrocesso-grau (values psr numTests))))
 		(setf var (maximum-degree psr))
-		(setf aux2 (psr-variavel-dominio psr var))
-		(dolist (atr aux2 NIL)
+		(dolist (atr (psr-variavel-dominio psr var) NIL)
 			(setf res1 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
 			(setf test (nth 0 res1))
 			(setf aux1 (nth 1 res1))
@@ -444,7 +442,7 @@
 	select-var))
 
 ; adiciona-inferencias(psr inferencias) - 
-(defun 	adiciona-inferencias(psr inferencias)
+(defun adiciona-inferencias(psr inferencias)
 	(let ((lista (inferencia-lista inferencias)) (dom NIL))
 		(dolist (ele lista NIL)
 			(setf dom (psr-variavel-dominio psr (car ele)))
@@ -465,8 +463,8 @@
 		(dolist (ele lista NIL)
 				(cond ((equal var (car ele))
 						(setf (cdr ele) dominio)
-						(return-from set-dominio-inferencias))))
-		(setf (inferencia-lista inferencias) (cons (cons var dominio) (inferencia-lista inferencias)))))
+						(return-from set-dominio-inferencias))))			;UPDATE dom
+		(setf (inferencia-lista inferencias) (cons (cons var dominio) (inferencia-lista inferencias)))));ADD dom
 	
 ; revise(psr x y inferencias) - 
 (defun revise(psr x y inferencias)
@@ -490,12 +488,12 @@
 					(setf foundConsistentValue T) (return))))
 			(cond ((not foundConsistentValue)
 				(setf revised T)
-				(setf novo-dominio-x (remove vx novo-dominio-x)))))
+				(setf novo-dominio-x (remove vx novo-dominio-x :test #'equal)))))
 		(cond (revised
 			(set-dominio-inferencias x novo-dominio-x inferencias)))
 	(values revised testesTotais)))
 
-; arcos-vizinhos-nao-atribuidos(psr var) -
+; arcos-vizinhos-nao-atribuidos(psr var) - 
 (defun arcos-vizinhos-nao-atribuidos(psr var)
 	(let ((result NIL) (var-restr (psr-variavel-restricoes psr var)) (vars-nao-atribuidas (psr-variaveis-nao-atribuidas psr)) (aux NIL))
 		(dolist (restr var-restr NIL)
@@ -506,41 +504,38 @@
 						(setf result (cons (cons ele var) result)))))))
 	(reverse result)))
 						
-; forward-checking(psr var) - 
+; forward-checking(psr var) - Mechanism used in restriction propagation.
 (defun forward-checking(psr var)
 	(let ((inferencias (make-inferencia)) (testesTotais 0) (lista-arcos (arcos-vizinhos-nao-atribuidos psr var)) (aux NIL))
 		(dolist (ele lista-arcos NIL)
 			(setf aux (multiple-value-list (revise psr (car ele) (cdr ele) inferencias)))
 			(setf testesTotais (+ testesTotais (nth 1 aux)))
 			(cond ((nth 0 aux)
-					(if (equal (length (get-dominio-inferencias (car ele) inferencias)) 0)
+					;Found Variable that have no possible value left and returns NIL.
+					(if (equal (length (get-dominio-inferencias (car ele) inferencias)) 0)	
 						(return-from forward-checking (values NIL testesTotais))))))
 	(values inferencias testesTotais)))
 		
 ; procura-retocesso-fc-mrv(psr) - Backtracking Search using Forward Checking mechanism 
 ; and MRV (Minimum Remaining Value) Heuristic.
 (defun procura-retrocesso-fc-mrv(psr)
-	(let ((testesTotais 0) (aux1 0) (dom NIL) (res NIL) (res1 NIL) (test NIL) (var (MRV psr)) (inf NIL))
+	(let ((testesTotais 0) (res NIL) (res1 NIL) (var (MRV psr)) (inf NIL))
 		(cond ((psr-completo-p psr) 
 			(return-from procura-retrocesso-fc-mrv (values psr testesTotais))))
 			
-		(setf dom (psr-variavel-dominio psr var))
-		(dolist (atr dom NIL)
+		(dolist (atr (psr-variavel-dominio psr var) NIL)
 			(setf res1 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
-			(setf test (nth 0 res1))
-			(setf aux1 (nth 1 res1))
-			(setf testesTotais (+ testesTotais aux1))
-			(cond ((equal test T)
+			(setf testesTotais (+ testesTotais (nth 1 res1)))
+			(cond ((nth 0 res1)
 				(psr-adiciona-atribuicao! psr var atr)
 				(setf res1 (multiple-value-list (forward-checking psr var)))
 				(setf testesTotais (+ testesTotais (nth 1 res1)))
 				(setf inf (nth 0 res1))
 				(cond (inf
-					(adiciona-inferencias psr (nth 0 res1))
+					(adiciona-inferencias psr inf)
 					(setf res1 (multiple-value-list (procura-retrocesso-fc-mrv psr)))
 					(setf res (nth 0 res1))
-					(setf aux1 (nth 1 res1))
-					(setf testesTotais (+ testesTotais aux1))
+					(setf testesTotais (+ testesTotais (nth 1 res1)))
 					(cond ((not (equal res FAILURE)) 
 						(return-from procura-retrocesso-fc-mrv (values res testesTotais))))
 					(adiciona-inferencias psr inf)))
@@ -549,17 +544,51 @@
 
 ;==========================================================================================	
 
-
+; MAC(psr var) - 
+(defun MAC(psr var)
+	(let ((testesTotais 0) (inferencias (make-inferencia)) (lista-arcos (arcos-vizinhos-nao-atribuidos psr var))
+		(aux NIL) (novos-arcos NIL))
+		
+		(dolist (arco lista-arcos NIL)
+			(setf aux (multiple-value-list (revise psr (car arco) (cdr arco) inferencias)))
+			(setf testesTotais (+ testesTotais (nth 1 aux)))
+			(cond ((nth 0 aux)
+				(if (= (length (get-dominio-inferencias (car arco) inferencias)) 0)
+					(return-from MAC (values NIL testesTotais)))
+				(setf novos-arcos (arcos-vizinhos-nao-atribuidos psr (car arco)))
+				(setf novos-arcos (remove (cons (cdr arco) (car arco)) novos-arcos :test #'equal))
+				(setf lista-arcos (append lista-arcos novos-arcos)))))
+		(return-from MAC (values inferencias testesTotais))))
+					
 ; procura-retrocesso-mac-mrv(psr) - Solves CSP using MAC (Maintain Arc Consistency) mechanism and MRV
 ; heuristic.
 (defun procura-retrocesso-mac-mrv(psr)
-psr)
+	(let ((testesTotais 0) (res NIL) (res1 NIL) (var (MRV psr)) (inf NIL))
+			(cond ((psr-completo-p psr) 
+				(return-from procura-retrocesso-mac-mrv (values psr testesTotais))))
+				
+			(dolist (atr (psr-variavel-dominio psr var) NIL)
+				(setf res1 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
+				(setf testesTotais (+ testesTotais (nth 1 res1)))			
+				(cond ((nth 0 res1)
+					(psr-adiciona-atribuicao! psr var atr)
+					(setf res1 (multiple-value-list (MAC psr var)))
+					(setf testesTotais (+ testesTotais (nth 1 res1)))
+					(setf inf (nth 0 res1))
+					(cond (inf
+						(adiciona-inferencias psr inf)
+						(setf res1 (multiple-value-list (procura-retrocesso-mac-mrv psr)))
+						(setf res (nth 0 res1))
+						(setf testesTotais (+ testesTotais (nth 1 res1)))
+						(cond ((not (equal res FAILURE)) 
+							(return-from procura-retrocesso-mac-mrv (values res testesTotais))))
+						(adiciona-inferencias psr inf)))
+					(psr-remove-atribuicao! psr var))))
+		(values FAILURE testesTotais)))
 
 
 
 ;==========================================================================================
-
-
 
 ; resolve-best(array) - Receives and Fill-a-Pix array and use best algorythm to solve it.
 (defun resolve-best(array)
@@ -572,10 +601,17 @@ array)
 (defvar puzzle2)
 (defvar puzzle5)
 (defvar puzzle1.1)
+(defvar puzzle0)
+(defvar psr0)
 (defvar psr5)
 (defvar psr2)
 (defvar psr1)
 (defvar psr1.1)
+
+(setf puzzle0 (make-array (list 3 3) :initial-contents 
+	'((NIL NIL NIL)
+	  (NIL 9 NIL)
+	  (NIL NIL NIL))))
 
 (setf puzzle1 (make-array (list 5 5) :initial-contents
 	'((NIL NIL 1 NIL NIL)
@@ -624,4 +660,5 @@ array)
 (setf psr1.1 (fill-a-pix->psr puzzle1.1))
 (setf psr2 (fill-a-pix->psr puzzle2))
 (setf psr5 (fill-a-pix->psr puzzle5))
-(setf psr1 (fill-a-pix->psr puzzle1))	  
+(setf psr1 (fill-a-pix->psr puzzle1))
+(setf psr0 (fill-a-pix->psr puzzle0))	  
