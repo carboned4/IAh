@@ -4,7 +4,7 @@
 ;Andre Filipe Pardal Pires			N 76046
 ;Miguel de Oliveira Melicia Martins N 76102
 
-;(load "exemplos.fas")
+(load "exemplos.fas")
 
 ;=========================== FUNCOES AUXILIARES =============================
 ; junta(lista lista) - Function retunrs l2 append in end of l1.
@@ -592,11 +592,12 @@
 
 ; resolve-best(array) - Receives and Fill-a-Pix array and use best algorythm to solve it.
 (defun resolve-best(array)
-array)
+  (resolve-simples array)
+  
+)
 	
 			
 ;========================= FIM FUNCOES PARA RESOLUCAO CSP =================================================
-
 (defvar puzzle1)
 (defvar puzzle2)
 (defvar puzzle5)
@@ -609,8 +610,8 @@ array)
 (defvar psr1.1)
 
 (setf puzzle0 (make-array (list 3 3) :initial-contents 
-	'((NIL NIL NIL)
-	  (NIL 9 NIL)
+	'((4 NIL NIL)
+	  (NIL NIL NIL)
 	  (NIL NIL NIL))))
 
 (setf puzzle1 (make-array (list 5 5) :initial-contents
@@ -661,4 +662,5 @@ array)
 (setf psr2 (fill-a-pix->psr puzzle2))
 (setf psr5 (fill-a-pix->psr puzzle5))
 (setf psr1 (fill-a-pix->psr puzzle1))
-(setf psr0 (fill-a-pix->psr puzzle0))	  
+(setf psr0 (fill-a-pix->psr puzzle0))
+
