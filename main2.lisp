@@ -7,14 +7,6 @@
 ;(load "exemplos.fas")
 
 ;=========================== FUNCOES AUXILIARES =============================
-; junta(lista lista) - Function retunrs l2 append in end of l1.
-(defun junta (l1 l2)
-	"Junta duas listas"
-	(if (null l1)
-		l2
-		(cons (first l1)
-			(junta (rest l1) l2))))
-
 ; membro(elemento lista) - Verifies if the element is in the list.
 (defun membro (ele lis)
 	(cond ((null lis) NIL)
@@ -200,34 +192,25 @@
 		(setf res (multiple-value-list (psr-variavel-consistente-p psr var)))
 		(psr-adiciona-atribuicao! psr var aux)
 		(return-from psr-atribuicao-consistente-p (values (nth 0 res) (nth 1 res)))))
-
-; (Funcao Auxiliar) restricoes-conjuntas-consistentes(psr var1 var2) - Verifies all restrictions
-; that have both var1 and var2.
-(defun restricoes-conjuntas-consistentes(psr var1 var2)
-	(let ((count 0) (aux ()) (restr1 (psr-variavel-restricoes psr var1)) (restr2 (psr-variavel-restricoes psr var2)))
-		(dolist (ele restr1 NIL)
-			(when (and (membro var1 (restricao-variaveis ele)) (membro var2 (restricao-variaveis ele)))
-				(setf count (1+ count))
-				(setf aux (cons ele aux))
-				(when (not(funcall (restricao-funcao-validacao ele) psr)) (return-from restricoes-conjuntas-consistentes (values NIL count)))))
-		(dolist (ele restr2 NIL)
-			(when (and (not(membro ele aux)) (membro var1 (restricao-variaveis ele)) (membro var2 (restricao-variaveis ele)))
-				(setf count (1+ count))
-				(when (not(funcall (restricao-funcao-validacao ele) psr)) (return-from restricoes-conjuntas-consistentes (values NIL count)))))
-	(values T count)))
 		
-; psr-atribuicoes-consistentes-arco-p(psr var1 v1 var2 v2) - Verifies if.
+; psr-atribuicoes-consistentes-arco-p(psr var1 v1 var2 v2) - Verifies if 2 variables are consistent in arc.
 (defun psr-atribuicoes-consistentes-arco-p (psr var1 v1 var2 v2)
 	(cond ((equal (psr-lista-restr psr) SEM-RESTRICOES) (return-from psr-atribuicoes-consistentes-arco-p (values T 0))))
-	(let ((res NIL) (aux1 (psr-variavel-valor psr var1)) (aux2 (psr-variavel-valor psr var2)))
-			(cond ((equal aux1 NIL) (setf aux1 NAO-ATRIBUIDA)))
-			(cond ((equal aux2 NIL) (setf aux2 NAO-ATRIBUIDA)))
-			(psr-adiciona-atribuicao! psr var1 v1)
-			(psr-adiciona-atribuicao! psr var2 v2)
-			(setf res (multiple-value-list (restricoes-conjuntas-consistentes psr var1 var2)))
-			(psr-adiciona-atribuicao! psr var1 aux1)
-			(psr-adiciona-atribuicao! psr var2 aux2)
-			(values (nth 0 res) (nth 1 res))))
+	(let ((testes 0) (aux1 (psr-variavel-valor psr var1)) (aux2 (psr-variavel-valor psr var2)))
+		(cond ((equal aux1 NIL) (setf aux1 NAO-ATRIBUIDA)))
+		(cond ((equal aux2 NIL) (setf aux2 NAO-ATRIBUIDA)))
+		(psr-adiciona-atribuicao! psr var1 v1)
+		(psr-adiciona-atribuicao! psr var2 v2)
+		(dolist (r (psr-variavel-restricoes psr var1) NIL)
+			(cond ((membro var2 (restricao-variaveis r))
+					(incf testes)
+					(cond ((not (funcall (restricao-funcao-validacao r) psr))
+						(psr-adiciona-atribuicao! psr var1 aux1)
+						(psr-adiciona-atribuicao! psr var2 aux2)
+						(return-from psr-atribuicoes-consistentes-arco-p (values NIL testes)))))))
+		(psr-adiciona-atribuicao! psr var1 aux1)
+		(psr-adiciona-atribuicao! psr var2 aux2)
+		(values T testes)))
 				
 ;========================= FIM ESTRUTURAS DE DADOS ===============================
 
@@ -259,34 +242,32 @@
 ; cria-pred-geral(valor lista) - Create Closure used in positions that have a restriction
 ; between 1 and 8.
 (defun cria-pred-geral (valor lista)
-	(let ((aux 0) (aux2 -1) (cmp valor) (lis lista))
+	(let ((aux 0) (nils 0) (cmp valor) (lis lista))
 		#'(lambda (psr)
 			(dolist (ele lis NIL)
-					(when (null (psr-variavel-valor psr ele)) (setf aux2 T) (return))
-					(setf aux (+ (psr-variavel-valor psr ele) aux)))
-				(cond ((not(equal aux2 -1)) (setf aux2 -1) (setf aux 0) T)
-					((equal aux cmp) (setf aux 0) T)
-					(T (setf aux 0) NIL)))))
+				(when (null (psr-variavel-valor psr ele)) (incf nils))
+				(when (psr-variavel-valor psr ele) (setf aux (+ (psr-variavel-valor psr ele) aux))))
+			(cond ((and (>= (+ nils aux) cmp) (not (> aux cmp))) (setf aux 0) (setf nils 0) T)
+				(T (setf aux 0) (setf nils 0) NIL)))))
 
 ; cria-pred-9(lista) - Create Closure used in positions with restriction equal to 9.				
 (defun cria-pred-9 (lista)
 	(let ((aux -1) (aux2 NIL) (lis lista))
 		#'(lambda (psr)
 			(dolist (ele lis NIL)
-					(when (null (psr-variavel-valor psr ele)) (setf aux T)  (return))
-					(when (equal 0 (psr-variavel-valor psr ele)) (setf aux NIL) (return)))
-					 (cond ((equal aux -1) T) 
-							(T (setf aux2 aux) (setf aux -1) aux2)))))	
+				(when (equal 0 (psr-variavel-valor psr ele)) (setf aux NIL) (return)))
+			 (cond ((equal aux -1) T) 
+				(T (setf aux2 aux) (setf aux -1) aux2)))))	
+
 							
 ; cria-pred-0(lista) - Create Closure used in positions with restriction equal to 0.							
 (defun cria-pred-0 (lista)
 	(let ((aux -1) (aux2 NIL) (lis lista))
 		#'(lambda (psr)
 			(dolist (ele lis NIL)
-					(when (null (psr-variavel-valor psr ele)) (setf aux T) (return))
-					(when (equal 1 (psr-variavel-valor psr ele)) (setf aux NIL) (return)))
-					(cond ((equal aux -1) T) 
-							(T (setf aux2 aux) (setf aux -1) aux2)))))
+				(when (equal 1 (psr-variavel-valor psr ele)) (setf aux NIL) (return)))
+			(cond ((equal aux -1) T) 
+				(T (setf aux2 aux) (setf aux -1) aux2)))))
 
 							
 ; fill-a-pix->psr(array) - Transforms a Fill-a-Pix array-problem in a PSR.
@@ -307,7 +288,17 @@
 	(dotimes (y ncolunas)   
 		(dotimes (x nlinhas)
 			(setf val (aref array x y))
-			(cond ((equal val 9)
+			(cond ((and (equal val 6) (equal (length (boarders x y  nlinhas ncolunas)) 6))
+					(setf restList(append restList (list   
+					(cria-restricao (boarders x y nlinhas ncolunas) 
+					(cria-pred-9 (boarders x y  nlinhas ncolunas))
+					)))))
+				((and (equal val 4) (equal (length (boarders x y  nlinhas ncolunas)) 4))
+					(setf restList(append restList (list   
+					(cria-restricao (boarders x y nlinhas ncolunas) 
+					(cria-pred-9 (boarders x y  nlinhas ncolunas))
+					)))))
+				((equal val 9)
 				(setf restList(append restList (list   
 					(cria-restricao (boarders x y nlinhas ncolunas) 
 					(cria-pred-9 (boarders x y  nlinhas ncolunas))
@@ -390,12 +381,12 @@
 ; maximum-degree(psr) - Returns the maximum degree variable.
 (defun maximum-degree(psr)
 	(let ((varList  (psr-variaveis-nao-atribuidas psr)) (maximumVar NIL) (aux 0) (maximumNum -1))
-		(dolist (var varList NIL)
+		(dolist (var varList)
 			(setf aux 0)
-			(dolist (restr (psr-variavel-restricoes psr var) NIL)
-				(dolist (ele (restricao-variaveis restr) NIL)
-					(cond ((and (not (equal var ele)) (membro ele (psr-variaveis-nao-atribuidas psr)))
-						(setf aux (1+ aux)) (return)))))
+			(dolist (restr (psr-variavel-restricoes psr var))
+				(dolist (ele (restricao-variaveis restr))
+					(cond ((and (not (equal var ele)) (equal NIL (psr-variavel-valor psr ele)))
+						(incf aux) (return)))))
 			(cond ((< maximumNum aux)
 				(setf maximumNum aux) (setf maximumVar var))))
 	maximumVar))
@@ -407,7 +398,7 @@
 		(cond ((psr-completo-p psr) 
 			(return-from procura-retrocesso-grau (values psr numTests))))
 		(setf var (maximum-degree psr))
-		(dolist (atr (psr-variavel-dominio psr var) NIL)
+		(dolist (atr (psr-variavel-dominio psr var))
 			(setf res1 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
 			(setf test (nth 0 res1))
 			(setf aux1 (nth 1 res1))
@@ -495,14 +486,13 @@
 
 ; arcos-vizinhos-nao-atribuidos(psr var) - 
 (defun arcos-vizinhos-nao-atribuidos(psr var)
-	(let ((result NIL) (var-restr (psr-variavel-restricoes psr var)) (vars-nao-atribuidas (psr-variaveis-nao-atribuidas psr)) (aux NIL))
-		(dolist (restr var-restr NIL)
-			(setf aux (restricao-variaveis restr))
-			(dolist (ele aux NIL)
-				(if (not (equal var ele))
-					(cond ((and (membro ele vars-nao-atribuidas) (not (membro (cons ele var) result)))
-						(setf result (cons (cons ele var) result)))))))
-	(reverse result)))
+	(let ((result NIL))
+		(dolist (var-natribuida (psr-variaveis-nao-atribuidas psr))
+			(cond ((not (equal var var-natribuida))
+				(dolist (ele (psr-variavel-restricoes psr var))
+					(cond ((and (membro var-natribuida (restricao-variaveis ele)) (not(membro (cons var-natribuida var) result)))
+						(setf result (cons (cons var-natribuida var) result))))))))
+		(reverse result)))
 						
 ; forward-checking(psr var) - Mechanism used in restriction propagation.
 (defun forward-checking(psr var)
@@ -544,12 +534,12 @@
 
 ;==========================================================================================	
 
-; MAC(psr var) - 
+; MAC(psr var) - Restriction propagation mechanism.
 (defun MAC(psr var)
 	(let ((testesTotais 0) (inferencias (make-inferencia)) (lista-arcos (arcos-vizinhos-nao-atribuidos psr var))
 		(aux NIL) (novos-arcos NIL))
 		
-		(dolist (arco lista-arcos NIL)
+		(dolist (arco lista-arcos)
 			(setf aux (multiple-value-list (revise psr (car arco) (cdr arco) inferencias)))
 			(setf testesTotais (+ testesTotais (nth 1 aux)))
 			(cond ((nth 0 aux)
@@ -591,10 +581,11 @@
 ;==========================================================================================
 
 ; resolve-best(array) - Receives and Fill-a-Pix array and use best algorythm to solve it.
-(defun resolve-best(array)
-  (resolve-simples array)
-
-)
+(defun resolve-best(arr)
+  (let ((res (procura-retrocesso-simples (fill-a-pix->psr arr))))
+		(cond ((equal res FAILURE)
+			NIL)
+			(T (psr->fill-a-pix res (array-dimension arr 0) (array-dimension arr 1))))))
 	
 			
 ;========================= FIM FUNCOES PARA RESOLUCAO CSP =================================================
