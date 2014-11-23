@@ -4,7 +4,7 @@
 ;Andre Filipe Pardal Pires			N 76046
 ;Miguel de Oliveira Melicia Martins N 76102
 
-;(load "exemplos.fas")
+(load "exemplos.fas")
 
 ;=========================== FUNCOES AUXILIARES =============================
 ; membro(elemento lista) - Verifies if the element is in the list.
@@ -33,13 +33,11 @@
 (defun restricao-funcao-validacao (restricao)
 	(restricao-predicado restricao))
 
-
 	
 ; 						TIPO PSR
-(defconstant NAO-ATRIBUIDA -1)
 (defconstant SEM-RESTRICOES -1)
 
-(defstruct var (nome NIL) (valor NAO-ATRIBUIDA) (dom NIL))
+(defstruct var (nome NIL) (valor NIL) (dom NIL))
 
 (defstruct psr (lista-var NIL) (lista-restr NIL))
 
@@ -63,39 +61,38 @@
 (defun psr-atribuicoes (psr)
 	(let ((res NIL) (iter-var (psr-lista-var psr)))
 		(loop do
-			(when (not(equal (var-valor (first iter-var)) NAO-ATRIBUIDA))
-				(setf res (cons(cons (var-nome (first iter-var)) (var-valor (first iter-var))) res)))
+			(when (not(equal (var-valor (first iter-var)) NIL))
+				(setf res (append res (list(cons (var-nome (first iter-var)) (var-valor (first iter-var)))))))
 			(setf iter-var (rest iter-var))
 			while(not(null iter-var)))
-	(reverse res)))
+	res))
 
 ; psr-variaveis-todas(psr) - Returns a list with all variables.		 
 (defun psr-variaveis-todas (psr)
 	(let ((res NIL) (iter-var (psr-lista-var psr)))
 		(loop do
-			(setf res (cons (var-nome (first iter-var)) res))
+			(setf res (append res (list (var-nome (first iter-var)))))
 			(setf iter-var (rest iter-var))
 		while(not(null iter-var)))
-	(reverse res)))
+	res))
 		
-	
 ; psr-variaveis-nao-atribuidas(psr) - Returns list with all variables that have
 ; no value.
 (defun psr-variaveis-nao-atribuidas (psr)
 	(let ((res NIL) (iter-var (psr-lista-var psr)))
 		(loop do
-			(when (equal (var-valor (first iter-var)) NAO-ATRIBUIDA)
-				(setf res (cons (var-nome (first iter-var)) res)))
+			(when (equal (var-valor (first iter-var)) NIL)
+				(setf res (append res (list (var-nome (first iter-var))))))
 			(setf iter-var (rest iter-var))
 		while(not(null iter-var)))
-	(reverse res)))
+	res))
 
 ; psr-variavel-valor(psr variavel) - Function returns value of variable or NIL if variable
 ; doesnt have one.
 (defun psr-variavel-valor(psr var)
 	(let ((iter-var (psr-lista-var psr)))
-		(dolist (ele iter-var NIL)
-			(cond ((and (equal var (var-nome ele)) (equal (var-valor ele) NAO-ATRIBUIDA))
+		(dolist (ele iter-var)
+			(cond ((and (equal var (var-nome ele)) (equal (var-valor ele) NIL))
 				(return NIL))
 					((equal var (var-nome ele)) (return (var-valor ele)))))))
 				
@@ -139,7 +136,7 @@
 	(let ((iter-var (psr-lista-var psr)))
 		(loop do
 			(when (equal (var-nome (first iter-var)) var)
-				(setf (var-valor (first iter-var)) NAO-ATRIBUIDA)  
+				(setf (var-valor (first iter-var)) NIL)  
 				(return))
 			(setf iter-var (rest iter-var))
 		while(not(null iter-var)))
@@ -165,29 +162,28 @@
 (defun psr-consistente-p(psr)
 	(cond ((equal (psr-lista-restr psr) SEM-RESTRICOES) (return-from psr-consistente-p (values T 0))))
 	(let ((count 0) (restr (psr-lista-restr psr)))								;All restrictions.
-		(dolist (restricao restr NIL)
+		(dolist (restricao restr)
+			(incf count)
 			(when (not(funcall (restricao-funcao-validacao restricao) psr))		;Call to restriction predicate.
-				(setf count (1+ count))
-				(return-from psr-consistente-p (values NIL count)))
-			(setf count (1+ count)))
+				(return-from psr-consistente-p (values NIL count))))
 	(values T count)))
 
 ; psr-variavel-consistente-p(psr var) - Verifies all variable restrictions.
 (defun psr-variavel-consistente-p (psr var)
 	(let ((count 0) (restr (psr-variavel-restricoes psr var)))				;Restriction affects variable.
 		(cond ((null restr) (return-from psr-variavel-consistente-p (values T 0))))
-		(dolist (ele restr NIL)
+		(dolist (ele restr)
 			(when (not(funcall (restricao-funcao-validacao ele) psr))		;Call to restriction predicate.
-				(setf count (1+ count))
+				(incf count)
 				(return-from psr-variavel-consistente-p (values NIL count)))
-			(setf count (1+ count)))
+			(incf count))
 		(values T count)))
 
 ; psr-atribuicao-consistente-p(psr var value) - Verifies if { var = value } maintain var restricitons consistent.
 (defun psr-atribuicao-consistente-p(psr var valor)
 	(cond ((equal (psr-lista-restr psr) SEM-RESTRICOES) (return-from psr-atribuicao-consistente-p (values T 0))))
 	(let ((res NIL) (aux (psr-variavel-valor psr var)))
-		(cond ((equal aux NIL) (setf aux NAO-ATRIBUIDA)))
+		(cond ((equal aux NIL) (setf aux NIL)))
 		(psr-adiciona-atribuicao! psr var valor)
 		(setf res (multiple-value-list (psr-variavel-consistente-p psr var)))
 		(psr-adiciona-atribuicao! psr var aux)
@@ -197,11 +193,11 @@
 (defun psr-atribuicoes-consistentes-arco-p (psr var1 v1 var2 v2)
 	(cond ((equal (psr-lista-restr psr) SEM-RESTRICOES) (return-from psr-atribuicoes-consistentes-arco-p (values T 0))))
 	(let ((testes 0) (aux1 (psr-variavel-valor psr var1)) (aux2 (psr-variavel-valor psr var2)))
-		(cond ((equal aux1 NIL) (setf aux1 NAO-ATRIBUIDA)))
-		(cond ((equal aux2 NIL) (setf aux2 NAO-ATRIBUIDA)))
+		(cond ((equal aux1 NIL) (setf aux1 NIL)))
+		(cond ((equal aux2 NIL) (setf aux2 NIL)))
 		(psr-adiciona-atribuicao! psr var1 v1)
 		(psr-adiciona-atribuicao! psr var2 v2)
-		(dolist (r (psr-variavel-restricoes psr var1) NIL)
+		(dolist (r (psr-variavel-restricoes psr var1))
 			(cond ((membro var2 (restricao-variaveis r))
 					(incf testes)
 					(cond ((not (funcall (restricao-funcao-validacao r) psr))
@@ -218,7 +214,7 @@
 
 ;========================= FUNCOES DO TABULEIRO ==================================
 
-; FUNCOES AUXILIARES
+; AUXILIAR FUNCTIONS
 
 ; boarders(x y nlinhas ncolunas - Returns all positions around one given (x y).
 (defun boarders (x y nlinhas ncolunas)
@@ -244,7 +240,7 @@
 (defun cria-pred-geral (valor lista)
 	(let ((aux 0) (nils 0) (cmp valor) (lis lista))
 		#'(lambda (psr)
-			(dolist (ele lis NIL)
+			(dolist (ele lis)
 				(when (null (psr-variavel-valor psr ele)) (incf nils))
 				(when (psr-variavel-valor psr ele) (setf aux (+ (psr-variavel-valor psr ele) aux))))
 			(cond ((and (>= (+ nils aux) cmp) (not (> aux cmp))) (setf aux 0) (setf nils 0) T)
@@ -254,7 +250,7 @@
 (defun cria-pred-9 (lista)
 	(let ((aux -1) (aux2 NIL) (lis lista))
 		#'(lambda (psr)
-			(dolist (ele lis NIL)
+			(dolist (ele lis)
 				(when (equal 0 (psr-variavel-valor psr ele)) (setf aux NIL) (return)))
 			 (cond ((equal aux -1) T) 
 				(T (setf aux2 aux) (setf aux -1) aux2)))))	
@@ -264,7 +260,7 @@
 (defun cria-pred-0 (lista)
 	(let ((aux -1) (aux2 NIL) (lis lista))
 		#'(lambda (psr)
-			(dolist (ele lis NIL)
+			(dolist (ele lis)
 				(when (equal 1 (psr-variavel-valor psr ele)) (setf aux NIL) (return)))
 			(cond ((equal aux -1) T) 
 				(T (setf aux2 aux) (setf aux -1) aux2)))))
@@ -345,32 +341,27 @@
 ;			remove {var = value} from assignment
 ;	return failure
 
-(defconstant FAILURE -1)
-
-; procura-retrocesso-simples(psr) - Receives a PSR and search for a solution using only BackTracking Search.
+; procura-retrocesso-simples(psr) - Receives a PSR and search for a solution using only BackTracking Search
+; without heuristics or restriciton propagation mechanism.
 (defun procura-retrocesso-simples(psr)
-	(let ((numTests 0) (aux1 0) (res NIL) (res1 NIL) (test NIL) (var (first (psr-variaveis-nao-atribuidas psr))))
+	(let ((testesTotais 0) (res NIL) (var (first (psr-variaveis-nao-atribuidas psr))))
 		(cond ((psr-completo-p psr) 
-			(return-from procura-retrocesso-simples (values psr numTests))))
-		(dolist (atr (psr-variavel-dominio psr var) NIL)
-			(setf res1 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
-			(setf test (nth 0 res1))
-			(setf aux1 (nth 1 res1))
-			(setf numTests (+ numTests aux1))
-			(cond ((equal test T)
+			(return-from procura-retrocesso-simples (values psr testesTotais))))
+		(dolist (atr (psr-variavel-dominio psr var))
+			(setf res (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
+			(setf testesTotais (+ testesTotais (nth 1 res)))
+			(cond ((nth 0 res)
 				(psr-adiciona-atribuicao! psr var atr)
-				(setf res1 (multiple-value-list (procura-retrocesso-simples psr)))
-				(setf res (nth 0 res1))
-				(setf aux1 (nth 1 res1))
-				(setf numTests (+ numTests aux1))
-				(cond ((not (equal res FAILURE)) (return-from procura-retrocesso-simples (values res numTests))))
+				(setf res (multiple-value-list (procura-retrocesso-simples psr)))
+				(setf testesTotais (+ testesTotais(nth 1 res)))
+				(cond ((nth 0 res) (return-from procura-retrocesso-simples (values (nth 0 res) testesTotais))))
 				(psr-remove-atribuicao! psr var))))
-	(values FAILURE numTests)))
+	(values NIL testesTotais)))
 
 ; resolve-simples(array) - Receives a Fill-a-Pix (array) and try solve it.
 (defun resolve-simples(arr)
 	(let ((res (procura-retrocesso-simples (fill-a-pix->psr arr))))
-		(cond ((equal res FAILURE)
+		(cond ((equal res NIL)
 			NIL)
 			(T (psr->fill-a-pix res (array-dimension arr 0) (array-dimension arr 1))))))
 
@@ -409,9 +400,9 @@
 				(setf res (nth 0 res1))
 				(setf aux1 (nth 1 res1))
 				(setf numTests (+ numTests aux1))
-				(cond ((not (equal res FAILURE)) (return-from procura-retrocesso-grau (values res numTests))))
+				(cond ((not (equal res NIL)) (return-from procura-retrocesso-grau (values res numTests))))
 				(psr-remove-atribuicao! psr var))))
-	(values FAILURE numTests)))
+	(values NIL numTests)))
 
 ;==========================================================================================	
 
@@ -425,14 +416,14 @@
 		(setf select-var (first varList))
 		(setf minimum-domain-size (length (psr-variavel-dominio psr select-var)))
 		(setf varList (rest varList))
-		(dolist (ele varList NIL)
+		(dolist (ele varList)
 			(setf aux (length (psr-variavel-dominio psr ele)))
 			(cond ((< aux minimum-domain-size)
 					(setf select-var ele)
 					(setf minimum-domain-size aux))))
 	select-var))
 
-; adiciona-inferencias(psr inferencias) - 
+; adiciona-inferencias(psr inferencias) - Add new dom and saves the old ones in inferencias.
 (defun adiciona-inferencias(psr inferencias)
 	(let ((lista (inferencia-lista inferencias)) (dom NIL))
 		(dolist (ele lista NIL)
@@ -440,15 +431,15 @@
 			(psr-altera-dominio! psr (car ele) (cdr ele))
 			(setf (cdr ele) dom))))
 	
-; get-dominio-inferencias(var inferencias) -
+; get-dominio-inferencias(var inferencias) - Get var's dom saved in inferencias.
 (defun get-dominio-inferencias(var inferencias)
 	(let ((lista (inferencia-lista inferencias)))
 		(dolist (ele lista NIL)
 			(cond ((equal var (car ele))
 					(return-from get-dominio-inferencias (cdr ele)))))
-		NIL))
+		-1))
 	
-; set-dominio-inferencias(var inferencias) -
+; set-dominio-inferencias(var inferencias) - Set var's dom saved in inferencias.
 (defun set-dominio-inferencias(var dominio inferencias)
 	(let ((lista (inferencia-lista inferencias)))
 		(dolist (ele lista NIL)
@@ -456,23 +447,28 @@
 						(setf (cdr ele) dominio)
 						(return-from set-dominio-inferencias))))			;UPDATE dom
 		(setf (inferencia-lista inferencias) (cons (cons var dominio) (inferencia-lista inferencias)))));ADD dom
-	
-; revise(psr x y inferencias) - 
+		
+(defun fun(inf)
+	(let ((aux (car (first (inferencia-lista inf)))))
+		(print aux)
+		(setf aux 1)))
+		
+; revise(psr x y inferencias) - Tries make x and y consistent in arc.
 (defun revise(psr x y inferencias)
 	(let ((testesTotais 0) (revised NIL) (dominio-x NIL) (dominio-y NIL) (novo-dominio-x NIL) 
 	(foundConsistentValue NIL) (aux NIL))
 		(setf aux (get-dominio-inferencias x inferencias))
-		(if aux (setf dominio-x aux)
+		(if (not (equal aux -1)) (setf dominio-x aux)
 				  (setf dominio-x (copy-list (psr-variavel-dominio psr x))))	;Faz copia do que esta no PSR.
 		(setf novo-dominio-x dominio-x)
 		(setf aux (get-dominio-inferencias y inferencias))
-		(if (not (membro y (psr-variaveis-nao-atribuidas psr))) (setf dominio-y (list (psr-variavel-valor psr y)))
-			(if aux (setf dominio-y aux)
+		(if (psr-variavel-valor psr y) (setf dominio-y (list (psr-variavel-valor psr y)))
+			(if (not (equal aux -1)) (setf dominio-y aux)
 						(setf dominio-y (copy-list (psr-variavel-dominio psr y)))))
 			
-		(dolist (vx dominio-x NIL)
+		(dolist (vx dominio-x)
 			(setf foundConsistentValue NIL)
-			(dolist (vy dominio-y NIL)
+			(dolist (vy dominio-y)
 				(setf aux (multiple-value-list (psr-atribuicoes-consistentes-arco-p psr x vx y vy)))
 				(setf testesTotais (+ testesTotais (nth 1 aux)))
 				(cond ((nth 0 aux)
@@ -497,12 +493,12 @@
 ; forward-checking(psr var) - Mechanism used in restriction propagation.
 (defun forward-checking(psr var)
 	(let ((inferencias (make-inferencia)) (testesTotais 0) (lista-arcos (arcos-vizinhos-nao-atribuidos psr var)) (aux NIL))
-		(dolist (ele lista-arcos NIL)
-			(setf aux (multiple-value-list (revise psr (car ele) (cdr ele) inferencias)))
+		(dolist (arco lista-arcos)
+			(setf aux (multiple-value-list (revise psr (car arco) (cdr arco) inferencias)))
 			(setf testesTotais (+ testesTotais (nth 1 aux)))
 			(cond ((nth 0 aux)
 					;Found Variable that have no possible value left and returns NIL.
-					(if (equal (length (get-dominio-inferencias (car ele) inferencias)) 0)	
+					(if (equal (length (get-dominio-inferencias (car arco) inferencias)) 0)	
 						(return-from forward-checking (values NIL testesTotais))))))
 	(values inferencias testesTotais)))
 		
@@ -526,11 +522,11 @@
 					(setf res1 (multiple-value-list (procura-retrocesso-fc-mrv psr)))
 					(setf res (nth 0 res1))
 					(setf testesTotais (+ testesTotais (nth 1 res1)))
-					(cond ((not (equal res FAILURE)) 
+					(cond ((not (equal res NIL)) 
 						(return-from procura-retrocesso-fc-mrv (values res testesTotais))))
 					(adiciona-inferencias psr inf)))
 				(psr-remove-atribuicao! psr var))))
-	(values FAILURE testesTotais)))
+	(values NIL testesTotais)))
 
 ;==========================================================================================	
 
@@ -570,11 +566,11 @@
 						(setf res1 (multiple-value-list (procura-retrocesso-mac-mrv psr)))
 						(setf res (nth 0 res1))
 						(setf testesTotais (+ testesTotais (nth 1 res1)))
-						(cond ((not (equal res FAILURE)) 
+						(cond ((not (equal res NIL)) 
 							(return-from procura-retrocesso-mac-mrv (values res testesTotais))))
 						(adiciona-inferencias psr inf)))
 					(psr-remove-atribuicao! psr var))))
-		(values FAILURE testesTotais)))
+		(values NIL testesTotais)))
 
 
 
@@ -583,7 +579,7 @@
 ; resolve-best(array) - Receives and Fill-a-Pix array and use best algorythm to solve it.
 (defun resolve-best(arr)
   (let ((res (procura-retrocesso-simples (fill-a-pix->psr arr))))
-		(cond ((equal res FAILURE)
+		(cond ((equal res NIL)
 			NIL)
 			(T (psr->fill-a-pix res (array-dimension arr 0) (array-dimension arr 1))))))
 	
