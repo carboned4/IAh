@@ -1,10 +1,10 @@
-;Projecto IA 1 Parte
+;Projecto IA
 ;Grupo:
 ;Artur Jose Fonseca					N 75456 
 ;Andre Filipe Pardal Pires			N 76046
 ;Miguel de Oliveira Melicia Martins N 76102
 
-(load "exemplos.fas")
+;(load "exemplos.fas")
 
 ;=========================== FUNCOES AUXILIARES =============================
 ; membro(elemento lista) - Verifies if the element is in the list.
@@ -35,8 +35,6 @@
 
 	
 ; 						TIPO PSR
-(defconstant SEM-RESTRICOES -1)
-
 (defstruct var (nome NIL) (valor NIL) (dom NIL))
 
 (defstruct psr (lista-var NIL) (lista-restr NIL))
@@ -44,15 +42,13 @@
 ;###Constructor###
 ; cria-psr(lista lista lista) - Create PSR.	
 (defun cria-psr (lista-v lista-d lista-r)
-	(let ((vars NIL) (iter-var lista-v) (iter-dom lista-d) (aux NIL))
+	(let ((vars NIL) (iter-var lista-v) (iter-dom lista-d))
 		(loop do
-			(setf vars (cons (make-var :nome (first iter-var) :dom (first iter-dom)) vars))
+			(setf vars (append vars (list (make-var :nome (first iter-var) :dom (first iter-dom)))))
 			(setf iter-var (rest iter-var))
 			(setf iter-dom (rest iter-dom))
 		while(not(null iter-var)))
-		(cond ((null lista-r) (setf aux SEM-RESTRICOES))
-				(T (setf aux lista-r)))
-		(let ((psr (make-psr :lista-var (reverse vars) :lista-restr aux)))
+		(let ((psr (make-psr :lista-var vars :lista-restr lista-r)))
 			psr)))		
 ;#################			
 					
@@ -110,10 +106,10 @@
 	
 ; psr-variavel-restricoes(psr var) - Returns all restriction applied to var in the psr.
 (defun psr-variavel-restricoes(psr var)
-	(cond ((equal (psr-lista-restr psr) SEM-RESTRICOES) (return-from psr-variavel-restricoes NIL)))
+	(cond ((equal (psr-lista-restr psr) NIL) (return-from psr-variavel-restricoes NIL)))
 	(let ((res NIL) (i (psr-lista-restr psr)))
 		(loop do
-			(when (membro var (restricao-lista-var (first i)))
+			(when (membro var (restricao-variaveis (first i)))
 				(setf res (cons (first i) res)))
 			(setf i (rest i))
 		while(not(null i)))
@@ -160,7 +156,7 @@
 
 ; psr-consistente-p(psr) - Verifies if the CSP is consistent (VERIFIES ALL CSP RESTRICTIONS).
 (defun psr-consistente-p(psr)
-	(cond ((equal (psr-lista-restr psr) SEM-RESTRICOES) (return-from psr-consistente-p (values T 0))))
+	(cond ((equal (psr-lista-restr psr) NIL) (return-from psr-consistente-p (values T 0))))
 	(let ((count 0) (restr (psr-lista-restr psr)))								;All restrictions.
 		(dolist (restricao restr)
 			(incf count)
@@ -173,15 +169,14 @@
 	(let ((count 0) (restr (psr-variavel-restricoes psr var)))				;Restriction affects variable.
 		(cond ((null restr) (return-from psr-variavel-consistente-p (values T 0))))
 		(dolist (ele restr)
+			(incf count)
 			(when (not(funcall (restricao-funcao-validacao ele) psr))		;Call to restriction predicate.
-				(incf count)
-				(return-from psr-variavel-consistente-p (values NIL count)))
-			(incf count))
+				(return-from psr-variavel-consistente-p (values NIL count))))
 		(values T count)))
 
 ; psr-atribuicao-consistente-p(psr var value) - Verifies if { var = value } maintain var restricitons consistent.
 (defun psr-atribuicao-consistente-p(psr var valor)
-	(cond ((equal (psr-lista-restr psr) SEM-RESTRICOES) (return-from psr-atribuicao-consistente-p (values T 0))))
+	(cond ((equal (psr-lista-restr psr) NIL) (return-from psr-atribuicao-consistente-p (values T 0))))
 	(let ((res NIL) (aux (psr-variavel-valor psr var)))
 		(cond ((equal aux NIL) (setf aux NIL)))
 		(psr-adiciona-atribuicao! psr var valor)
@@ -191,7 +186,7 @@
 		
 ; psr-atribuicoes-consistentes-arco-p(psr var1 v1 var2 v2) - Verifies if 2 variables are consistent in arc.
 (defun psr-atribuicoes-consistentes-arco-p (psr var1 v1 var2 v2)
-	(cond ((equal (psr-lista-restr psr) SEM-RESTRICOES) (return-from psr-atribuicoes-consistentes-arco-p (values T 0))))
+	(cond ((equal (psr-lista-restr psr) NIL) (return-from psr-atribuicoes-consistentes-arco-p (values T 0))))
 	(let ((testes 0) (aux1 (psr-variavel-valor psr var1)) (aux2 (psr-variavel-valor psr var2)))
 		(cond ((equal aux1 NIL) (setf aux1 NIL)))
 		(cond ((equal aux2 NIL) (setf aux2 NIL)))
@@ -382,31 +377,26 @@
 				(setf maximumNum aux) (setf maximumVar var))))
 	maximumVar))
 
-	
 ; procura-retrocesso-grau(psr) - Backtracking Search using Maximum Degree Heuristic.
 (defun procura-retrocesso-grau(psr)
-	(let ((numTests 0) (aux1 0) (res NIL) (res1 NIL) (test NIL) (var NIL))
+	(let ((testesTotais 0) (res NIL) (var NIL))
 		(cond ((psr-completo-p psr) 
-			(return-from procura-retrocesso-grau (values psr numTests))))
+			(return-from procura-retrocesso-grau (values psr testesTotais))))
 		(setf var (maximum-degree psr))
 		(dolist (atr (psr-variavel-dominio psr var))
-			(setf res1 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
-			(setf test (nth 0 res1))
-			(setf aux1 (nth 1 res1))
-			(setf numTests (+ numTests aux1))
-			(cond ((equal test T)
+			(setf res (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
+			(setf testesTotais (+ testesTotais (nth 1 res)))
+			(cond ((nth 0 res)
 				(psr-adiciona-atribuicao! psr var atr)
-				(setf res1 (multiple-value-list (procura-retrocesso-grau psr)))
-				(setf res (nth 0 res1))
-				(setf aux1 (nth 1 res1))
-				(setf numTests (+ numTests aux1))
-				(cond ((not (equal res NIL)) (return-from procura-retrocesso-grau (values res numTests))))
+				(setf res (multiple-value-list (procura-retrocesso-grau psr)))
+				(setf testesTotais (+ testesTotais (nth 1 res)))
+				(cond ((not (equal (nth 0 res) NIL)) (return-from procura-retrocesso-grau (values (nth 0 res) testesTotais))))
 				(psr-remove-atribuicao! psr var))))
-	(values NIL numTests)))
+	(values NIL testesTotais)))
 
 ;==========================================================================================	
 
-; FUNCOES E ESTRUTURAS AUXILIARES
+; AXILIAR FUNCTIONS AND STRUCTURES
 ; IMPORTANTE: A lista da inferencia e uma lista de tuplos (var . dominio) em que dominio e uma lista de valores.
 (defstruct inferencia (lista NIL))
 
@@ -426,7 +416,7 @@
 ; adiciona-inferencias(psr inferencias) - Add new dom and saves the old ones in inferencias.
 (defun adiciona-inferencias(psr inferencias)
 	(let ((lista (inferencia-lista inferencias)) (dom NIL))
-		(dolist (ele lista NIL)
+		(dolist (ele lista)
 			(setf dom (psr-variavel-dominio psr (car ele)))
 			(psr-altera-dominio! psr (car ele) (cdr ele))
 			(setf (cdr ele) dom))))
@@ -434,7 +424,7 @@
 ; get-dominio-inferencias(var inferencias) - Get var's dom saved in inferencias.
 (defun get-dominio-inferencias(var inferencias)
 	(let ((lista (inferencia-lista inferencias)))
-		(dolist (ele lista NIL)
+		(dolist (ele lista)
 			(cond ((equal var (car ele))
 					(return-from get-dominio-inferencias (cdr ele)))))
 		-1))
@@ -442,16 +432,11 @@
 ; set-dominio-inferencias(var inferencias) - Set var's dom saved in inferencias.
 (defun set-dominio-inferencias(var dominio inferencias)
 	(let ((lista (inferencia-lista inferencias)))
-		(dolist (ele lista NIL)
+		(dolist (ele lista)
 				(cond ((equal var (car ele))
 						(setf (cdr ele) dominio)
 						(return-from set-dominio-inferencias))))			;UPDATE dom
 		(setf (inferencia-lista inferencias) (cons (cons var dominio) (inferencia-lista inferencias)))));ADD dom
-		
-(defun fun(inf)
-	(let ((aux (car (first (inferencia-lista inf)))))
-		(print aux)
-		(setf aux 1)))
 		
 ; revise(psr x y inferencias) - Tries make x and y consistent in arc.
 (defun revise(psr x y inferencias)
@@ -509,7 +494,7 @@
 		(cond ((psr-completo-p psr) 
 			(return-from procura-retrocesso-fc-mrv (values psr testesTotais))))
 			
-		(dolist (atr (psr-variavel-dominio psr var) NIL)
+		(dolist (atr (psr-variavel-dominio psr var))
 			(setf res1 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
 			(setf testesTotais (+ testesTotais (nth 1 res1)))
 			(cond ((nth 0 res1)
@@ -553,7 +538,7 @@
 			(cond ((psr-completo-p psr) 
 				(return-from procura-retrocesso-mac-mrv (values psr testesTotais))))
 				
-			(dolist (atr (psr-variavel-dominio psr var) NIL)
+			(dolist (atr (psr-variavel-dominio psr var))
 				(setf res1 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
 				(setf testesTotais (+ testesTotais (nth 1 res1)))			
 				(cond ((nth 0 res1)
