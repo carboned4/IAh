@@ -4,16 +4,16 @@
 ;Andre Filipe Pardal Pires			N 76046
 ;Miguel de Oliveira Melicia Martins N 76102
 
-;(load "exemplos.fas")
+(load "exemplos.fas")
 
-;=========================== FUNCOES AUXILIARES =============================
+;=========================== FUNCOES AUXILIARES ============================
 ; membro(elemento lista) - Verifies if the element is in the list.
 (defun membro (ele lis)
 	(cond ((null lis) NIL)
 		((equal ele (first lis)) T)
 		(T (membro ele (rest lis)))))
 		
-;========================== ESTRUTURAS DE DADOS ============================
+;========================== ESTRUTURAS DE DADOS ===========================
 
 ; 						TIPO RESTRICAO
 (defstruct restricao (lista-var NIL) (predicado NIL))
@@ -524,40 +524,38 @@
 			(setf aux (multiple-value-list (revise psr (car arco) (cdr arco) inferencias)))
 			(setf testesTotais (+ testesTotais (nth 1 aux)))
 			(cond ((nth 0 aux)
-				(if (= (length (get-dominio-inferencias (car arco) inferencias)) 0)
+				(if (equal (length (get-dominio-inferencias (car arco) inferencias)) 0)
 					(return-from MAC (values NIL testesTotais)))
 				(setf novos-arcos (arcos-vizinhos-nao-atribuidos psr (car arco)))
 				(setf novos-arcos (remove (cons (cdr arco) (car arco)) novos-arcos :test #'equal))
 				(setf lista-arcos (append lista-arcos novos-arcos)))))
-		(return-from MAC (values inferencias testesTotais))))
+		(values inferencias testesTotais)))
 					
 ; procura-retrocesso-mac-mrv(psr) - Solves CSP using MAC (Maintain Arc Consistency) mechanism and MRV
 ; heuristic.
 (defun procura-retrocesso-mac-mrv(psr)
 	(let ((testesTotais 0) (res NIL) (res1 NIL) (var (MRV psr)) (inf NIL))
-			(cond ((psr-completo-p psr) 
-				(return-from procura-retrocesso-mac-mrv (values psr testesTotais))))
-				
-			(dolist (atr (psr-variavel-dominio psr var))
-				(setf res1 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
-				(setf testesTotais (+ testesTotais (nth 1 res1)))			
-				(cond ((nth 0 res1)
-					(psr-adiciona-atribuicao! psr var atr)
-					(setf res1 (multiple-value-list (MAC psr var)))
+		(cond ((psr-completo-p psr) 
+			(return-from procura-retrocesso-mac-mrv (values psr testesTotais))))
+			
+		(dolist (atr (psr-variavel-dominio psr var))
+			(setf res1 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
+			(setf testesTotais (+ testesTotais (nth 1 res1)))			
+			(cond ((nth 0 res1)
+				(psr-adiciona-atribuicao! psr var atr)
+				(setf res1 (multiple-value-list (MAC psr var)))
+				(setf testesTotais (+ testesTotais (nth 1 res1)))
+				(setf inf (nth 0 res1))
+				(cond (inf
+					(adiciona-inferencias psr inf)
+					(setf res1 (multiple-value-list (procura-retrocesso-mac-mrv psr)))
+					(setf res (nth 0 res1))
 					(setf testesTotais (+ testesTotais (nth 1 res1)))
-					(setf inf (nth 0 res1))
-					(cond (inf
-						(adiciona-inferencias psr inf)
-						(setf res1 (multiple-value-list (procura-retrocesso-mac-mrv psr)))
-						(setf res (nth 0 res1))
-						(setf testesTotais (+ testesTotais (nth 1 res1)))
-						(cond ((not (equal res NIL)) 
-							(return-from procura-retrocesso-mac-mrv (values res testesTotais))))
-						(adiciona-inferencias psr inf)))
-					(psr-remove-atribuicao! psr var))))
-		(values NIL testesTotais)))
-
-
+					(cond ((not (equal res NIL)) 
+						(return-from procura-retrocesso-mac-mrv (values res testesTotais))))
+					(adiciona-inferencias psr inf)))
+				(psr-remove-atribuicao! psr var))))
+	(values NIL testesTotais)))
 
 ;==========================================================================================
 
