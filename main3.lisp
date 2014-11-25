@@ -4,19 +4,19 @@
 ;Andre Filipe Pardal Pires			N 76046
 ;Miguel de Oliveira Melicia Martins N 76102
 
-(load "exemplos.fas")
+;(load "exemplos.fas")
 
 ;=========================== FUNCOES AUXILIARES ============================
 ; membro(elemento lista) - Verifies if the element is in the list.
 (defun membro (ele lis)
-	(cond ((null lis) NIL)
+	(cond ((null lis) nil)
 		((equal ele (first lis)) T)
 		(T (membro ele (rest lis)))))
 		
 ;========================== ESTRUTURAS DE DADOS ===========================
 
 ; 						TIPO RESTRICAO
-(defstruct restricao (lista-var NIL) (predicado NIL))
+(defstruct restricao (lista-var nil) (predicado nil))
 
 ;###Constructor###
 ; cria-restricao(lista predicado) - Creates a new restriction.
@@ -35,79 +35,62 @@
 
 	
 ; 						TIPO PSR
-(defstruct var (nome NIL) (valor NIL) (dom NIL))
+(defstruct var (nome nil) (valor nil) (dom nil))
 
-(defstruct psr (lista-var NIL) (lista-restr NIL))
+(defstruct psr (variaveis-hash nil) (lista-var nil) (lista-restr nil))
 
 ;###Constructor###
 ; cria-psr(lista lista lista) - Create PSR.	
 (defun cria-psr (lista-v lista-d lista-r)
-	(let ((vars NIL) (iter-var lista-v) (iter-dom lista-d))
+	(let ((vars-hash (make-hash-table :test #'equal :size (length lista-v) :rehash-threshold 1.0)) (iter-var lista-v) (iter-dom lista-d))
 		(loop do
-			(setf vars (append vars (list (make-var :nome (first iter-var) :dom (first iter-dom)))))
+			(setf (gethash (first iter-var) vars-hash) (make-var :nome (first iter-var) :dom (first iter-dom)))
 			(setf iter-var (rest iter-var))
 			(setf iter-dom (rest iter-dom))
 		while(not(null iter-var)))
-		(let ((psr (make-psr :lista-var vars :lista-restr lista-r)))
+		(let ((psr (make-psr :variaveis-hash vars-hash :lista-restr lista-r :lista-var lista-v)))
 			psr)))		
 ;#################			
 					
 ;###Functions###					
 ; psr-atribuicoes(psr) - Returns a list with all "PAIRS" (var . value) of PSR.
 (defun psr-atribuicoes (psr)
-	(let ((res NIL) (iter-var (psr-lista-var psr)))
+	(let ((res nil) (iter-var (psr-lista-var psr)))
 		(loop do
-			(when (not(equal (var-valor (first iter-var)) NIL))
-				(setf res (append res (list(cons (var-nome (first iter-var)) (var-valor (first iter-var)))))))
+			(when (not(equal (var-valor (gethash (first iter-var) (psr-variaveis-hash psr))) nil))
+				(setf res (append res (list(cons (first iter-var) (var-valor (gethash (first iter-var) (psr-variaveis-hash psr))))))))
 			(setf iter-var (rest iter-var))
 			while(not(null iter-var)))
 	res))
 
 ; psr-variaveis-todas(psr) - Returns a list with all variables.		 
 (defun psr-variaveis-todas (psr)
-	(let ((res NIL) (iter-var (psr-lista-var psr)))
-		(loop do
-			(setf res (append res (list (var-nome (first iter-var)))))
-			(setf iter-var (rest iter-var))
-		while(not(null iter-var)))
-	res))
+	(psr-lista-var psr))
 		
 ; psr-variaveis-nao-atribuidas(psr) - Returns list with all variables that have
 ; no value.
 (defun psr-variaveis-nao-atribuidas (psr)
-	(let ((res NIL) (iter-var (psr-lista-var psr)))
+	(let ((res nil) (iter-var (psr-lista-var psr)))
 		(loop do
-			(when (equal (var-valor (first iter-var)) NIL)
-				(setf res (append res (list (var-nome (first iter-var))))))
+			(when (equal (var-valor (gethash (first iter-var) (psr-variaveis-hash psr))) nil)
+				(setf res (append res (list  (first iter-var)))))
 			(setf iter-var (rest iter-var))
 		while(not(null iter-var)))
 	res))
 
-; psr-variavel-valor(psr variavel) - Function returns value of variable or NIL if variable
+; psr-variavel-valor(psr variavel) - Function returns value of variable or nil if variable
 ; doesnt have one.
 (defun psr-variavel-valor(psr var)
-	(let ((iter-var (psr-lista-var psr)))
-		(dolist (ele iter-var)
-			(cond ((and (equal var (var-nome ele)) (equal (var-valor ele) NIL))
-				(return NIL))
-					((equal var (var-nome ele)) (return (var-valor ele)))))))
+	(var-valor (gethash var (psr-variaveis-hash psr))))
 				
-	
 ; psr-variavel-dominio(psr var) - Returns var domain.
 (defun psr-variavel-dominio (psr var)
-	(let ((iter-var (psr-lista-var psr)))
-		(loop do
-			(when (equal (var-nome (first iter-var)) var)
-				(return-from psr-variavel-dominio (var-dom (first iter-var))))
-			(setf iter-var (rest iter-var))
-		while(not(null iter-var)))
-	NIL))
-	
+	(var-dom (gethash var (psr-variaveis-hash psr))))
 	
 ; psr-variavel-restricoes(psr var) - Returns all restriction applied to var in the psr.
 (defun psr-variavel-restricoes(psr var)
-	(cond ((equal (psr-lista-restr psr) NIL) (return-from psr-variavel-restricoes NIL)))
-	(let ((res NIL) (i (psr-lista-restr psr)))
+	(cond ((equal (psr-lista-restr psr) nil) (return-from psr-variavel-restricoes nil)))
+	(let ((res nil) (i (psr-lista-restr psr)))
 		(loop do
 			(when (membro var (restricao-variaveis (first i)))
 				(setf res (cons (first i) res)))
@@ -117,51 +100,31 @@
 
 ; psr-adiciona-atribuicao! (psr var valor) - Adds a value to the var.
 (defun psr-adiciona-atribuicao! (psr var valor)
-	(let ((iter-var (psr-lista-var psr)))
-		(loop do
-			(when (equal (var-nome (first iter-var)) var)
-				(setf (var-valor (first iter-var)) valor)  
-				(return))
-			(setf iter-var (rest iter-var))
-		while(not(null iter-var)))
-	NIL))
+	(setf (var-valor (gethash var (psr-variaveis-hash psr))) valor))
 		
-	
 ;psr-remove-atribuicao!(psr var) - Makes the var without VALUE.  
 (defun psr-remove-atribuicao! (psr var)
-	(let ((iter-var (psr-lista-var psr)))
-		(loop do
-			(when (equal (var-nome (first iter-var)) var)
-				(setf (var-valor (first iter-var)) NIL)  
-				(return))
-			(setf iter-var (rest iter-var))
-		while(not(null iter-var)))
-	NIL))
-
+	(setf (var-valor (gethash var (psr-variaveis-hash psr))) nil))
+	
 ; psr-altera-dominio!(psr var dom) - Changes var Domain.	
 (defun psr-altera-dominio! (psr var dom)
-	(let ((var-list (psr-lista-var psr)))
-		(loop do
-			(when (equal var (var-nome (first var-list)))
-				(setf (var-dom (first var-list)) dom))
-			(setf var-list (rest var-list))
-		while(not(null var-list)))))	
+	(setf (var-dom (gethash var (psr-variaveis-hash psr))) dom))	
 
 ; psr-completo-p(psr) - Verifies if all variables have a value.
 (defun psr-completo-p(psr)
 	(cond ((null (psr-variaveis-nao-atribuidas psr)) 
 			T)
 		(T 
-			NIL)))
+			nil)))
 
 ; psr-consistente-p(psr) - Verifies if the CSP is consistent (VERIFIES ALL CSP RESTRICTIONS).
 (defun psr-consistente-p(psr)
-	(cond ((equal (psr-lista-restr psr) NIL) (return-from psr-consistente-p (values T 0))))
+	(cond ((equal (psr-lista-restr psr) nil) (return-from psr-consistente-p (values T 0))))
 	(let ((count 0) (restr (psr-lista-restr psr)))								;All restrictions.
 		(dolist (restricao restr)
 			(incf count)
 			(when (not(funcall (restricao-funcao-validacao restricao) psr))		;Call to restriction predicate.
-				(return-from psr-consistente-p (values NIL count))))
+				(return-from psr-consistente-p (values nil count))))
 	(values T count)))
 
 ; psr-variavel-consistente-p(psr var) - Verifies all variable restrictions.
@@ -171,14 +134,14 @@
 		(dolist (ele restr)
 			(incf count)
 			(when (not(funcall (restricao-funcao-validacao ele) psr))		;Call to restriction predicate.
-				(return-from psr-variavel-consistente-p (values NIL count))))
+				(return-from psr-variavel-consistente-p (values nil count))))
 		(values T count)))
 
 ; psr-atribuicao-consistente-p(psr var value) - Verifies if { var = value } maintain var restricitons consistent.
 (defun psr-atribuicao-consistente-p(psr var valor)
-	(cond ((equal (psr-lista-restr psr) NIL) (return-from psr-atribuicao-consistente-p (values T 0))))
-	(let ((res NIL) (aux (psr-variavel-valor psr var)))
-		(cond ((equal aux NIL) (setf aux NIL)))
+	(cond ((equal (psr-lista-restr psr) nil) (return-from psr-atribuicao-consistente-p (values T 0))))
+	(let ((res nil) (aux (psr-variavel-valor psr var)))
+		(cond ((equal aux nil) (setf aux nil)))
 		(psr-adiciona-atribuicao! psr var valor)
 		(setf res (multiple-value-list (psr-variavel-consistente-p psr var)))
 		(psr-adiciona-atribuicao! psr var aux)
@@ -186,10 +149,10 @@
 		
 ; psr-atribuicoes-consistentes-arco-p(psr var1 v1 var2 v2) - Verifies if 2 variables are consistent in arc.
 (defun psr-atribuicoes-consistentes-arco-p (psr var1 v1 var2 v2)
-	(cond ((equal (psr-lista-restr psr) NIL) (return-from psr-atribuicoes-consistentes-arco-p (values T 0))))
+	(cond ((equal (psr-lista-restr psr) nil) (return-from psr-atribuicoes-consistentes-arco-p (values T 0))))
 	(let ((testes 0) (aux1 (psr-variavel-valor psr var1)) (aux2 (psr-variavel-valor psr var2)))
-		(cond ((equal aux1 NIL) (setf aux1 NIL)))
-		(cond ((equal aux2 NIL) (setf aux2 NIL)))
+		(cond ((equal aux1 nil) (setf aux1 nil)))
+		(cond ((equal aux2 nil) (setf aux2 nil)))
 		(psr-adiciona-atribuicao! psr var1 v1)
 		(psr-adiciona-atribuicao! psr var2 v2)
 		(dolist (r (psr-variavel-restricoes psr var1))
@@ -198,7 +161,7 @@
 					(cond ((not (funcall (restricao-funcao-validacao r) psr))
 						(psr-adiciona-atribuicao! psr var1 aux1)
 						(psr-adiciona-atribuicao! psr var2 aux2)
-						(return-from psr-atribuicoes-consistentes-arco-p (values NIL testes)))))))
+						(return-from psr-atribuicoes-consistentes-arco-p (values nil testes)))))))
 		(psr-adiciona-atribuicao! psr var1 aux1)
 		(psr-adiciona-atribuicao! psr var2 aux2)
 		(values T testes)))
@@ -239,24 +202,24 @@
 				(when (null (psr-variavel-valor psr ele)) (incf nils))
 				(when (psr-variavel-valor psr ele) (setf aux (+ (psr-variavel-valor psr ele) aux))))
 			(cond ((and (>= (+ nils aux) cmp) (not (> aux cmp))) (setf aux 0) (setf nils 0) T)
-				(T (setf aux 0) (setf nils 0) NIL)))))
+				(T (setf aux 0) (setf nils 0) nil)))))
 
 ; cria-pred-9(lista) - Create Closure used in positions with restriction equal to 9.				
 (defun cria-pred-9 (lista)
-	(let ((aux -1) (aux2 NIL) (lis lista))
+	(let ((aux -1) (aux2 nil) (lis lista))
 		#'(lambda (psr)
 			(dolist (ele lis)
-				(when (equal 0 (psr-variavel-valor psr ele)) (setf aux NIL) (return)))
+				(when (equal 0 (psr-variavel-valor psr ele)) (setf aux nil) (return)))
 			 (cond ((equal aux -1) T) 
 				(T (setf aux2 aux) (setf aux -1) aux2)))))	
 
 							
 ; cria-pred-0(lista) - Create Closure used in positions with restriction equal to 0.							
 (defun cria-pred-0 (lista)
-	(let ((aux -1) (aux2 NIL) (lis lista))
+	(let ((aux -1) (aux2 nil) (lis lista))
 		#'(lambda (psr)
 			(dolist (ele lis)
-				(when (equal 1 (psr-variavel-valor psr ele)) (setf aux NIL) (return)))
+				(when (equal 1 (psr-variavel-valor psr ele)) (setf aux nil) (return)))
 			(cond ((equal aux -1) T) 
 				(T (setf aux2 aux) (setf aux -1) aux2)))))
 
@@ -265,7 +228,7 @@
 (defun fill-a-pix->psr (array)
   (let*(
 	(i 0)
-	(val NIL)
+	(val nil)
 	(dom (list 0 1))
 	(restList '())
 	(nlinhas (first(array-dimensions array)))             
@@ -339,7 +302,7 @@
 ; procura-retrocesso-simples(psr) - Receives a PSR and search for a solution using only BackTracking Search
 ; without heuristics or restriciton propagation mechanism.
 (defun procura-retrocesso-simples(psr)
-	(let ((testesTotais 0) (res NIL) (var (first (psr-variaveis-nao-atribuidas psr))))
+	(let ((testesTotais 0) (res nil) (var (first (psr-variaveis-nao-atribuidas psr))))
 		(cond ((psr-completo-p psr) 
 			(return-from procura-retrocesso-simples (values psr testesTotais))))
 		(dolist (atr (psr-variavel-dominio psr var))
@@ -351,13 +314,13 @@
 				(setf testesTotais (+ testesTotais(nth 1 res)))
 				(cond ((nth 0 res) (return-from procura-retrocesso-simples (values (nth 0 res) testesTotais))))
 				(psr-remove-atribuicao! psr var))))
-	(values NIL testesTotais)))
+	(values nil testesTotais)))
 
 ; resolve-simples(array) - Receives a Fill-a-Pix (array) and try solve it.
 (defun resolve-simples(arr)
 	(let ((res (procura-retrocesso-simples (fill-a-pix->psr arr))))
-		(cond ((equal res NIL)
-			NIL)
+		(cond ((equal res nil)
+			nil)
 			(T (psr->fill-a-pix res (array-dimension arr 0) (array-dimension arr 1))))))
 
 ;################################################################################################
@@ -366,12 +329,12 @@
 
 ; maximum-degree(psr) - Returns the maximum degree variable.
 (defun maximum-degree(psr)
-	(let ((varList  (psr-variaveis-nao-atribuidas psr)) (maximumVar NIL) (aux 0) (maximumNum -1))
+	(let ((varList  (psr-variaveis-nao-atribuidas psr)) (maximumVar nil) (aux 0) (maximumNum -1))
 		(dolist (var varList)
 			(setf aux 0)
 			(dolist (restr (psr-variavel-restricoes psr var))
 				(dolist (ele (restricao-variaveis restr))
-					(cond ((and (not (equal var ele)) (equal NIL (psr-variavel-valor psr ele)))
+					(cond ((and (not (equal var ele)) (equal nil (psr-variavel-valor psr ele)))
 						(incf aux) (return)))))
 			(cond ((< maximumNum aux)
 				(setf maximumNum aux) (setf maximumVar var))))
@@ -379,7 +342,7 @@
 
 ; procura-retrocesso-grau(psr) - Backtracking Search using Maximum Degree Heuristic.
 (defun procura-retrocesso-grau(psr)
-	(let ((testesTotais 0) (res NIL) (var NIL))
+	(let ((testesTotais 0) (res nil) (var nil))
 		(cond ((psr-completo-p psr) 
 			(return-from procura-retrocesso-grau (values psr testesTotais))))
 		(setf var (maximum-degree psr))
@@ -390,19 +353,19 @@
 				(psr-adiciona-atribuicao! psr var atr)
 				(setf res (multiple-value-list (procura-retrocesso-grau psr)))
 				(setf testesTotais (+ testesTotais (nth 1 res)))
-				(cond ((not (equal (nth 0 res) NIL)) (return-from procura-retrocesso-grau (values (nth 0 res) testesTotais))))
+				(cond ((not (equal (nth 0 res) nil)) (return-from procura-retrocesso-grau (values (nth 0 res) testesTotais))))
 				(psr-remove-atribuicao! psr var))))
-	(values NIL testesTotais)))
+	(values nil testesTotais)))
 
 ;==========================================================================================	
 
 ; AXILIAR FUNCTIONS AND STRUCTURES
 ; IMPORTANTE: A lista da inferencia e uma lista de tuplos (var . dominio) em que dominio e uma lista de valores.
-(defstruct inferencia (lista NIL))
+(defstruct inferencia (lista nil))
 
 ; MRV(psr) - Returns MRV (Minimum Remaining Value) variable.
 (defun MRV(psr)
-	(let ((varList (psr-variaveis-nao-atribuidas psr)) (select-var NIL) (minimum-domain-size NIL) (aux 0))
+	(let ((varList (psr-variaveis-nao-atribuidas psr)) (select-var nil) (minimum-domain-size nil) (aux 0))
 		(setf select-var (first varList))
 		(setf minimum-domain-size (length (psr-variavel-dominio psr select-var)))
 		(setf varList (rest varList))
@@ -415,7 +378,7 @@
 
 ; adiciona-inferencias(psr inferencias) - Add new dom and saves the old ones in inferencias.
 (defun adiciona-inferencias(psr inferencias)
-	(let ((lista (inferencia-lista inferencias)) (dom NIL))
+	(let ((lista (inferencia-lista inferencias)) (dom nil))
 		(dolist (ele lista)
 			(setf dom (psr-variavel-dominio psr (car ele)))
 			(psr-altera-dominio! psr (car ele) (cdr ele))
@@ -440,8 +403,8 @@
 		
 ; revise(psr x y inferencias) - Tries make x and y consistent in arc.
 (defun revise(psr x y inferencias)
-	(let ((testesTotais 0) (revised NIL) (dominio-x NIL) (dominio-y NIL) (novo-dominio-x NIL) 
-	(foundConsistentValue NIL) (aux NIL))
+	(let ((testesTotais 0) (revised nil) (dominio-x nil) (dominio-y nil) (novo-dominio-x nil) 
+	(foundConsistentValue nil) (aux nil))
 		(setf aux (get-dominio-inferencias x inferencias))
 		(if (not (equal aux -1)) (setf dominio-x aux)
 				  (setf dominio-x (copy-list (psr-variavel-dominio psr x))))	;Faz copia do que esta no PSR.
@@ -452,7 +415,7 @@
 						(setf dominio-y (copy-list (psr-variavel-dominio psr y)))))
 			
 		(dolist (vx dominio-x)
-			(setf foundConsistentValue NIL)
+			(setf foundConsistentValue nil)
 			(dolist (vy dominio-y)
 				(setf aux (multiple-value-list (psr-atribuicoes-consistentes-arco-p psr x vx y vy)))
 				(setf testesTotais (+ testesTotais (nth 1 aux)))
@@ -467,7 +430,7 @@
 
 ; arcos-vizinhos-nao-atribuidos(psr var) - 
 (defun arcos-vizinhos-nao-atribuidos(psr var)
-	(let ((result NIL))
+	(let ((result nil))
 		(dolist (var-natribuida (psr-variaveis-nao-atribuidas psr))
 			(cond ((not (equal var var-natribuida))
 				(dolist (ele (psr-variavel-restricoes psr var))
@@ -477,23 +440,23 @@
 						
 ; forward-checking(psr var) - Mechanism used in restriction propagation.
 (defun forward-checking(psr var)
-	(let ((inferencias (make-inferencia)) (testesTotais 0) (lista-arcos (arcos-vizinhos-nao-atribuidos psr var)) (aux NIL))
+	(let ((inferencias (make-inferencia)) (testesTotais 0) (lista-arcos (arcos-vizinhos-nao-atribuidos psr var)) (aux nil))
 		(dolist (arco lista-arcos)
 			(setf aux (multiple-value-list (revise psr (car arco) (cdr arco) inferencias)))
 			(setf testesTotais (+ testesTotais (nth 1 aux)))
 			(cond ((nth 0 aux)
-					;Found Variable that have no possible value left and returns NIL.
+					;Found Variable that have no possible value left and returns nil.
 					(if (equal (length (get-dominio-inferencias (car arco) inferencias)) 0)	
-						(return-from forward-checking (values NIL testesTotais))))))
+						(return-from forward-checking (values nil testesTotais))))))
 	(values inferencias testesTotais)))
 		
 ; procura-retocesso-fc-mrv(psr) - Backtracking Search using Forward Checking mechanism 
 ; and MRV (Minimum Remaining Value) Heuristic.
 (defun procura-retrocesso-fc-mrv(psr)
-	(let ((testesTotais 0) (res NIL) (res1 NIL) (var (MRV psr)) (inf NIL))
+	(let ((testesTotais 0) (res nil) (res1 nil) (var nil) (inf nil))
 		(cond ((psr-completo-p psr) 
 			(return-from procura-retrocesso-fc-mrv (values psr testesTotais))))
-			
+		(setf var (MRV psr))
 		(dolist (atr (psr-variavel-dominio psr var))
 			(setf res1 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
 			(setf testesTotais (+ testesTotais (nth 1 res1)))
@@ -508,17 +471,17 @@
 					(setf res1 (multiple-value-list (procura-retrocesso-fc-mrv psr)))
 					(setf res (nth 0 res1))
 					(setf testesTotais (+ testesTotais (nth 1 res1)))
-					(cond ((not (equal res NIL)) 
+					(cond ((not (equal res nil)) 
 						(return-from procura-retrocesso-fc-mrv (values res testesTotais))))
 					(adiciona-inferencias psr inf)))
 				(psr-remove-atribuicao! psr var))))
-	(values NIL testesTotais)))
+	(values nil testesTotais)))
 
 ;=========================================================================================	
 
 ; aux(psr lista infrenecia) - Auxiliar function used do tierate arc-list while being expanded.
 (defun mac-list(psr lista inferencia)
-	(let ((testesTotais 0) (aux NIL) (inferencias inferencia) (lista-arcos lista) (return-arcos NIL)(novos-arcos NIL))
+	(let ((testesTotais 0) (aux nil) (inferencias inferencia) (lista-arcos lista) (return-arcos nil)(novos-arcos nil))
 		(dolist (arco lista-arcos)
 			(setf aux (multiple-value-list (revise psr (car arco) (cdr arco) inferencias)))
 			(setf testesTotais (+ testesTotais (nth 1 aux)))
@@ -534,7 +497,7 @@
 ; MAC(psr var) - Restriction propagation mechanism.
 (defun MAC(psr var)
 	(let ((testesTotais 0) (inferencias (make-inferencia)) (lista-arcos (arcos-vizinhos-nao-atribuidos psr var))
-		(aux NIL) (repeat NIL))
+		(aux nil) (repeat nil))
 		(loop do
 			(setf aux (multiple-value-list (mac-list psr lista-arcos inferencias)))
 			(setf repeat(nth 0 aux))
@@ -542,17 +505,17 @@
 			(setf lista-arcos (nth 2 aux))
 			(setf inferencias (nth 3 aux))
 			(if (not repeat)
-				(return-from MAC (values NIL testesTotais)))
+				(return-from MAC (values nil testesTotais)))
 		while(not (null lista-arcos)))
 		(values inferencias testesTotais)))
 					
 ; procura-retrocesso-mac-mrv(psr) - Solves CSP using MAC (Maintain Arc Consistency) mechanism and MRV
 ; heuristic.
 (defun procura-retrocesso-mac-mrv(psr)
-	(let ((testesTotais 0) (res NIL) (res1 NIL) (var (MRV psr)) (inf NIL))
+	(let ((testesTotais 0) (res nil) (res1 nil) (var nil) (inf nil))
 		(cond ((psr-completo-p psr) 
 			(return-from procura-retrocesso-mac-mrv (values psr testesTotais))))
-			
+		(setf var (MRV psr))	
 		(dolist (atr (psr-variavel-dominio psr var))
 			(setf res1 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
 			(setf testesTotais (+ testesTotais (nth 1 res1)))			
@@ -566,19 +529,19 @@
 					(setf res1 (multiple-value-list (procura-retrocesso-mac-mrv psr)))
 					(setf res (nth 0 res1))
 					(setf testesTotais (+ testesTotais (nth 1 res1)))
-					(cond ((not (equal res NIL)) 
+					(cond ((not (equal res nil)) 
 						(return-from procura-retrocesso-mac-mrv (values res testesTotais))))
 					(adiciona-inferencias psr inf)))
 				(psr-remove-atribuicao! psr var))))
-	(values NIL testesTotais)))
+	(values nil testesTotais)))
 
 ;==========================================================================================
 
 ; resolve-best(array) - Receives and Fill-a-Pix array and use best algorythm to solve it.
 (defun resolve-best(arr)
-  (let ((res (procura-retrocesso-simples (fill-a-pix->psr arr))))
-		(cond ((equal res NIL)
-			NIL)
+  (let ((res (procura-retrocesso-fc-mrv (fill-a-pix->psr arr))))
+		(cond ((equal res nil)
+			nil)
 			(T (psr->fill-a-pix res (array-dimension arr 0) (array-dimension arr 1))))))
 	
 			
@@ -595,53 +558,53 @@
 (defvar psr1.1)
 
 (setf puzzle0 (make-array (list 3 3) :initial-contents 
-	'((4 NIL NIL)
-	  (NIL NIL NIL)
-	  (NIL NIL NIL))))
+	'((4 nil nil)
+	  (nil nil nil)
+	  (nil nil nil))))
 
 (setf puzzle1 (make-array (list 5 5) :initial-contents
-	'((NIL NIL 1 NIL NIL)
-	  (NIL 1 NIL NIL 5)
-	  (1 NIL NIL NIL 6)
-	  (NIL NIL NIL 9 NIL)
-	  (NIL 5 6 NIL NIL))))
+	'((nil nil 1 nil nil)
+	  (nil 1 nil nil 5)
+	  (1 nil nil nil 6)
+	  (nil nil nil 9 nil)
+	  (nil 5 6 nil nil))))
 
 (setf puzzle1.1 (make-array (list 5 5) :initial-contents
-	'((NIL 2 3 NIL NIL)
-	  (NIL NIL NIL NIL NIL)
-	  (NIL NIL 5 NIL NIL)
-	  (NIL 4 NIL 5 NIL)
-	  (NIL NIL 4 NIL NIL)
+	'((nil 2 3 nil nil)
+	  (nil nil nil nil nil)
+	  (nil nil 5 nil nil)
+	  (nil 4 nil 5 nil)
+	  (nil nil 4 nil nil)
 	  )))
 	  
 (setf puzzle2 (make-array (list 10 10) :initial-contents
-	'((NIL 2 3 NIL NIL 0 NIL NIL NIL NIL)
-	  (NIL NIL NIL NIL 3 NIL 2 NIL NIL 6)
-	  (NIL NIL 5 NIL 5 3 NIL 5 7 4)
-	  (NIL 4 NIL 5 NIL 5 NIL 6 NIL 3)
-	  (NIL NIL 4 NIL 5 NIL 6 NIL NIL 3)
-	  (NIL NIL NIL 2 NIL 5 NIL NIL NIL NIL)
-	  (4 NIL 1 NIL NIL NIL 1 1 NIL NIL)
-	  (4 NIL 1 NIL NIL NIL 1 NIL 4 NIL)
-	  (NIL NIL NIL NIL 6 NIL NIL NIL NIL 4)
-	  (NIL 4 4 NIL NIL NIL NIL 4 NIL NIL))))
+	'((nil 2 3 nil nil 0 nil nil nil nil)
+	  (nil nil nil nil 3 nil 2 nil nil 6)
+	  (nil nil 5 nil 5 3 nil 5 7 4)
+	  (nil 4 nil 5 nil 5 nil 6 nil 3)
+	  (nil nil 4 nil 5 nil 6 nil nil 3)
+	  (nil nil nil 2 nil 5 nil nil nil nil)
+	  (4 nil 1 nil nil nil 1 1 nil nil)
+	  (4 nil 1 nil nil nil 1 nil 4 nil)
+	  (nil nil nil nil 6 nil nil nil nil 4)
+	  (nil 4 4 nil nil nil nil 4 nil nil))))
 
 (setf puzzle5 (make-array (list 15 15) :initial-contents
-	'((0 NIL NIL 4 3 2 1 NIL NIL NIL NIL NIL 3 NIL NIL)
-	  (NIL NIL 5 NIL NIL 4 NIL NIL 4 4 NIL NIL NIL NIL 3)
-	  (NIL 5 4 5 4 5 5 NIL 5 3 NIL 1 2 NIL 3)
-	  (4 NIL NIL NIL 4 NIL NIL 4 2 NIL 1 NIL NIL NIL NIL)
-	  (NIL NIL 5 4 NIL 2 2 NIL 1 0 NIL NIL 7 5 NIL)
-	  (NIL NIL NIL 5 NIL NIL 0 NIL NIL NIL NIL 4 5 NIL 2)
-	  (4 NIL NIL 5 4 2 0 0 NIL NIL NIL 5 6 NIL NIL)
-	  (5 NIL NIL 6 5 NIL NIL NIL NIL NIL 3 3 3 NIL 3)
-	  (NIL NIL 5 NIL 5 3 NIL NIL NIL NIL NIL NIL 3 NIL NIL)
-	  (5 NIL NIL 6 5 NIL 3 5 NIL 6 NIL NIL 0 NIL 0)
-	  (NIL NIL 5 NIL 4 3 2 4 5 NIL 4 NIL NIL 1 NIL)
-	  (NIL 7 NIL NIL 5 NIL NIL 1 NIL 5 5 5 NIL NIL NIL)
-	  (NIL NIL 6 4 4 4 3 1 2 4 NIL NIL 6 4 NIL)
-	  (NIL 5 NIL 6 NIL NIL NIL NIL NIL 4 6 NIL NIL NIL NIL)
-	  (NIL NIL NIL NIL NIL NIL 3 2 0 NIL 4 4 3 NIL 2))))
+	'((0 nil nil 4 3 2 1 nil nil nil nil nil 3 nil nil)
+	  (nil nil 5 nil nil 4 nil nil 4 4 nil nil nil nil 3)
+	  (nil 5 4 5 4 5 5 nil 5 3 nil 1 2 nil 3)
+	  (4 nil nil nil 4 nil nil 4 2 nil 1 nil nil nil nil)
+	  (nil nil 5 4 nil 2 2 nil 1 0 nil nil 7 5 nil)
+	  (nil nil nil 5 nil nil 0 nil nil nil nil 4 5 nil 2)
+	  (4 nil nil 5 4 2 0 0 nil nil nil 5 6 nil nil)
+	  (5 nil nil 6 5 nil nil nil nil nil 3 3 3 nil 3)
+	  (nil nil 5 nil 5 3 nil nil nil nil nil nil 3 nil nil)
+	  (5 nil nil 6 5 nil 3 5 nil 6 nil nil 0 nil 0)
+	  (nil nil 5 nil 4 3 2 4 5 nil 4 nil nil 1 nil)
+	  (nil 7 nil nil 5 nil nil 1 nil 5 5 5 nil nil nil)
+	  (nil nil 6 4 4 4 3 1 2 4 nil nil 6 4 nil)
+	  (nil 5 nil 6 nil nil nil nil nil 4 6 nil nil nil nil)
+	  (nil nil nil nil nil nil 3 2 0 nil 4 4 3 nil 2))))
 
 (setf psr1.1 (fill-a-pix->psr puzzle1.1))
 (setf psr2 (fill-a-pix->psr puzzle2))
