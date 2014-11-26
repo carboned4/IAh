@@ -4,7 +4,7 @@
 ;Andre Filipe Pardal Pires			N 76046
 ;Miguel de Oliveira Melicia Martins N 76102
 
-;(load "exemplos.fas")
+(load "exemplos.fas")
 
 ;=========================== FUNCOES AUXILIARES ============================
 ; membro(elemento lista) - Verifies if the element is in the list.
@@ -93,10 +93,10 @@
 	(let ((res nil) (i (psr-lista-restr psr)))
 		(loop do
 			(when (membro var (restricao-variaveis (first i)))
-				(setf res (cons (first i) res)))
+				(setf res (append res (list (first i)))))
 			(setf i (rest i))
 		while(not(null i)))
-	(reverse res)))
+	res))
 
 ; psr-adiciona-atribuicao! (psr var valor) - Adds a value to the var.
 (defun psr-adiciona-atribuicao! (psr var valor)
@@ -271,14 +271,13 @@
 
 ; psr->fill-a-pix(psr int int) - Receives a solved PSR and converts to Fill-a-Pix (array).
 (defun psr->fill-a-pix(psr int1 int2)
-	(let ((res (make-array (list int1 int2))) (atribuicoes (psr-atribuicoes psr)))
-		(dotimes (coluna int2)
-			(dotimes (linha int1)
-				(setf (aref res linha coluna) (cdr (first atribuicoes)))
-				(setf atribuicoes (rest atribuicoes))))
+	(let ((res (make-array (list int1 int2))) (atribuicoes (psr-atribuicoes psr)) (aux nil))
+		(dolist (atr atribuicoes)
+			(setf aux (with-input-from-string (in (car atr)) (loop for x = (read in nil nil) while x collect x)))
+				(setf (aref res (nth 0 aux) (nth 1 aux)) (cdr atr)))
 		res))
-				
 
+				
 ;========================= FIM FUNCOES DO TABULEIRO =========================
 ;============================================================================
 ;#############################################################################
