@@ -35,19 +35,24 @@
 
 	
 ; 						TIPO PSR
-(defstruct var (nome nil) (valor nil) (dom nil))
+(defstruct var (nome nil) (valor nil) (dom nil) (restr-indice nil))
 
 (defstruct psr (variaveis-hash nil) (lista-var nil) (lista-restr nil))
 
 ;###Constructor###
 ; cria-psr(lista lista lista) - Create PSR.	
 (defun cria-psr (lista-v lista-d lista-r)
-	(let ((vars-hash (make-hash-table :test #'equal :size (length lista-v) :rehash-threshold 1.0)) (iter-var lista-v) (iter-dom lista-d))
+	(let ((vars-hash (make-hash-table :test #'equal :size (length lista-v) :rehash-threshold 1.0)) (iter-var lista-v) 
+	(iter-dom lista-d) (counter 0))
 		(loop do
 			(setf (gethash (first iter-var) vars-hash) (make-var :nome (first iter-var) :dom (first iter-dom)))
 			(setf iter-var (rest iter-var))
 			(setf iter-dom (rest iter-dom))
 		while(not(null iter-var)))
+		(dolist (restr lista-r)
+			(dolist (ele (restricao-variaveis restr))
+				(setf (var-restr-indice (gethash ele vars-hash)) (append (var-restr-indice (gethash ele vars-hash)) (list counter))))
+			(incf counter))
 		(let ((psr (make-psr :variaveis-hash vars-hash :lista-restr lista-r :lista-var lista-v)))
 			psr)))		
 ;#################			
@@ -89,11 +94,12 @@
 	
 ; psr-variavel-restricoes(psr var) - Returns all restriction applied to var in the psr.
 (defun psr-variavel-restricoes(psr var)
-	(cond ((equal (psr-lista-restr psr) nil) (return-from psr-variavel-restricoes nil)))
-	(let ((res nil) (i (psr-lista-restr psr)))
+	(cond ((null (psr-lista-restr psr)) (return-from psr-variavel-restricoes nil)))
+	(let ((res nil) (i (var-restr-indice (gethash var (psr-variaveis-hash psr)))))
+		(if (null i) (return-from psr-variavel-restricoes nil))
 		(loop do
-			(when (membro var (restricao-variaveis (first i)))
-				(setf res (append res (list (first i)))))
+			(when (membro var (restricao-variaveis (nth (first i) (psr-lista-restr psr))))
+				(setf res (append res (list (nth (first i) (psr-lista-restr psr))))))
 			(setf i (rest i))
 		while(not(null i)))
 	res))
@@ -478,7 +484,7 @@
 
 ;=========================================================================================	
 
-; aux(psr lista infrenecia) - Auxiliar function used do tierate arc-list while being expanded.
+; aux(psr lista infrenecia) - Auxiliar function used do iterate arc-list while being expanded.
 (defun mac-list(psr lista inferencia)
 	(let ((testesTotais 0) (aux nil) (inferencias inferencia) (lista-arcos lista) (return-arcos nil)(novos-arcos nil))
 		(dolist (arco lista-arcos)
@@ -534,11 +540,53 @@
 				(psr-remove-atribuicao! psr var))))
 	(values nil testesTotais)))
 
-;==========================================================================================
+;================================ RESOLVE-BEST =======================================
+
+(defun fill-a-pix->psr-best (array)
+  (let*(
+	(i 0)
+	(aux1 nil)
+	(aux0 nil)
+	(psr nil)
+	(val nil)
+	(dom (list 0 1))
+	(restList '())
+	(nlinhas (first(array-dimensions array)))             
+	(ncolunas (second(array-dimensions array)))    
+	(domList (make-list (* nlinhas ncolunas) :initial-element (copy-list dom)))
+	(varlist (make-list (* nlinhas ncolunas) :initial-element (list -1 -1))))        	   
+	(dotimes (a nlinhas)   
+		(dotimes (b ncolunas)      
+			(setf (nth i varList) (format nil "~D ~D" b a))
+			(setf i (+ i 1)))) 
+	(dotimes (y ncolunas)   
+		(dotimes (x nlinhas)
+			(setf val (aref array x y))
+			(cond ((and (equal val 6) (equal (length (boarders x y  nlinhas ncolunas)) 6))
+					(setf aux1 (append aux1 (boarders x y  nlinhas ncolunas))))
+				((and (equal val 4) (equal (length (boarders x y  nlinhas ncolunas)) 4))
+					(setf aux1 (append aux1 (boarders x y  nlinhas ncolunas))))
+				((equal val 9)
+					(setf aux1 (append aux1 (boarders x y  nlinhas ncolunas))))
+				((equal val 0)
+					(setf aux0 (append aux0 (boarders x y  nlinhas ncolunas))))
+				((not (null val))
+				(setf restList(append restList (list   
+					(cria-restricao (boarders x y nlinhas ncolunas) 
+					(cria-pred-geral val (boarders x y nlinhas ncolunas))
+					))))))))
+	(setf psr (cria-psr varList domList restList))
+	(dolist (var aux1)
+		(psr-altera-dominio! psr var NIL)
+		(psr-adiciona-atribuicao! psr var 1))
+	(dolist (var aux0)
+		(psr-altera-dominio! psr var NIL)
+		(psr-adiciona-atribuicao! psr var 0))
+	psr))
 
 ; resolve-best(array) - Receives and Fill-a-Pix array and use best algorythm to solve it.
 (defun resolve-best(arr)
-  (let ((res (procura-retrocesso-fc-mrv (fill-a-pix->psr arr))))
+  (let ((res (procura-retrocesso-simples (fill-a-pix->psr-best arr))))
 		(cond ((equal res nil)
 			nil)
 			(T (psr->fill-a-pix res (array-dimension arr 0) (array-dimension arr 1))))))
