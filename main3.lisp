@@ -173,14 +173,12 @@
 		(values T testes)))
 				
 ;========================= FIM ESTRUTURAS DE DADOS ===============================
-
 ;=================================================================================
-
 ;========================= FUNCOES DO TABULEIRO ==================================
 
 ; AUXILIAR FUNCTIONS
-
-; boarders(x y nlinhas ncolunas - Returns all positions around one given (x y).
+; boarders(x y nlinhas ncolunas - Returns all positions around one given (x y)
+; without exceed boarders.
 (defun boarders (x y nlinhas ncolunas)
 	(let* (
 	(i 0)       
@@ -228,8 +226,7 @@
 				(when (equal 1 (psr-variavel-valor psr ele)) (setf aux nil) (return)))
 			(cond ((equal aux -1) T) 
 				(T (setf aux2 aux) (setf aux -1) aux2)))))
-
-							
+						
 ; fill-a-pix->psr(array) - Transforms a Fill-a-Pix array-problem in a PSR.
 (defun fill-a-pix->psr (array)
   (let*(
@@ -283,7 +280,6 @@
 				(setf (aref res (nth 0 aux) (nth 1 aux)) (cdr atr)))
 		res))
 
-				
 ;========================= FIM FUNCOES DO TABULEIRO =========================
 ;============================================================================
 ;#############################################################################
@@ -331,6 +327,7 @@
 ;################################################################################################
 ;################################ FUNCOES PARTE 2 PROJECTO ######################################
 ;################################################################################################			
+;================================ MAXIMUM-DEGREE SEARCH =========================================
 
 ; maximum-degree(psr) - Returns the maximum degree variable.
 (defun maximum-degree(psr)
@@ -362,12 +359,42 @@
 				(psr-remove-atribuicao! psr var))))
 	(values nil testesTotais)))
 
-;==========================================================================================	
+;========================================================================================
+;==================================== INFERENCIA ========================================
+; AUXILIAR FUNCTIONS AND STRUCTURE
+; 
+(defstruct inferencia (var-dom-hash (make-hash-table :test #'equal :rehash-threshold 1.0)))
 
-; AXILIAR FUNCTIONS AND STRUCTURES
-; IMPORTANTE: A lista da inferencia e uma lista de tuplos (var . dominio) em que dominio e uma lista de valores.
-(defstruct inferencia (lista nil))
+; adiciona-inferencias(psr inferencias) - Add new dom and saves the old ones in inferencias.
+(defun adiciona-inferencias(psr inferencias)
+	(let ((dom nil))
+		(loop for key being the hash-keys of (inferencia-var-dom-hash inferencias)
+			using (hash-value value)
+			do (progn
+					(setf dom (psr-variavel-dominio psr key))
+					(psr-altera-dominio! psr key value)
+					(setf (gethash key (inferencia-var-dom-hash inferencias)) dom)
+			))))
+			
+; get-dominio-inferencias(var inferencias) - Get var's dom saved in inferencias.
+(defun get-dominio-inferencias(var inferencias)
+	(let ((aux NIL))
+		(setf aux (multiple-value-list (gethash var (inferencia-var-dom-hash inferencias))))
+		(if (nth 1 aux)
+			(return-from get-dominio-inferencias (nth 0 aux))
+			(return-from get-dominio-inferencias -1))))
+	
+; set-dominio-inferencias(var inferencias) - Update/Set var's dom saved in inferencias.
+(defun set-dominio-inferencias(var dominio inferencias)
+	(let ((aux NIL))
+		(setf aux (multiple-value-list (gethash var (inferencia-var-dom-hash inferencias))))
+		(if (nth 1 aux)
+			(setf (gethash var (inferencia-var-dom-hash inferencias)) dominio)
+			(setf (gethash var (inferencia-var-dom-hash inferencias)) dominio))))
 
+;============================= END INFERENCIA ================================================		
+;=========================== FORWARD-CHECKING-MRV SEARCH =====================================
+		
 ; MRV(psr) - Returns MRV (Minimum Remaining Value) variable.
 (defun MRV(psr)
 	(let ((varList (psr-variaveis-nao-atribuidas psr)) (select-var nil) (minimum-domain-size nil) (aux 0))
@@ -380,31 +407,6 @@
 					(setf select-var ele)
 					(setf minimum-domain-size aux))))
 	select-var))
-
-; adiciona-inferencias(psr inferencias) - Add new dom and saves the old ones in inferencias.
-(defun adiciona-inferencias(psr inferencias)
-	(let ((lista (inferencia-lista inferencias)) (dom nil))
-		(dolist (ele lista)
-			(setf dom (psr-variavel-dominio psr (car ele)))
-			(psr-altera-dominio! psr (car ele) (cdr ele))
-			(setf (cdr ele) dom))))
-	
-; get-dominio-inferencias(var inferencias) - Get var's dom saved in inferencias.
-(defun get-dominio-inferencias(var inferencias)
-	(let ((lista (inferencia-lista inferencias)))
-		(dolist (ele lista)
-			(cond ((equal var (car ele))
-					(return-from get-dominio-inferencias (cdr ele)))))
-		-1))
-	
-; set-dominio-inferencias(var inferencias) - Set var's dom saved in inferencias.
-(defun set-dominio-inferencias(var dominio inferencias)
-	(let ((lista (inferencia-lista inferencias)))
-		(dolist (ele lista)
-				(cond ((equal var (car ele))
-						(setf (cdr ele) dominio)
-						(return-from set-dominio-inferencias))))			;UPDATE dom
-		(setf (inferencia-lista inferencias) (cons (cons var dominio) (inferencia-lista inferencias)))));ADD dom
 		
 ; revise(psr x y inferencias) - Tries make x and y consistent in arc.
 (defun revise(psr x y inferencias)
@@ -433,7 +435,8 @@
 			(set-dominio-inferencias x novo-dominio-x inferencias)))
 	(values revised testesTotais)))
 
-; arcos-vizinhos-nao-atribuidos(psr var) - 
+; arcos-vizinhos-nao-atribuidos(psr var) - Returns a list with all arcs corresponding
+; a restriction between var and other vars that share restriction with it.
 (defun arcos-vizinhos-nao-atribuidos(psr var)
 	(let ((result nil))
 		(dolist (var-natribuida (psr-variaveis-nao-atribuidas psr))
@@ -482,9 +485,9 @@
 				(psr-remove-atribuicao! psr var))))
 	(values nil testesTotais)))
 
-;=========================================================================================	
+;================================== MAC-MRV-SEARCH ===========================================	
 
-; aux(psr lista infrenecia) - Auxiliar function used do iterate arc-list while being expanded.
+; mac-list(psr lista infrenecia) - Auxiliar function used do iterate arc-list while being expanded.
 (defun mac-list(psr lista inferencia)
 	(let ((testesTotais 0) (aux nil) (inferencias inferencia) (lista-arcos lista) (return-arcos nil)(novos-arcos nil))
 		(dolist (arco lista-arcos)
@@ -499,7 +502,7 @@
 		(values T testesTotais return-arcos inferencia)))
 				
 				
-; MAC(psr var) - Restriction propagation mechanism.
+; MAC(psr var) - MAC restriction propagation mechanism.
 (defun MAC(psr var)
 	(let ((testesTotais 0) (inferencias (make-inferencia)) (lista-arcos (arcos-vizinhos-nao-atribuidos psr var))
 		(aux nil) (repeat nil))
@@ -540,8 +543,10 @@
 				(psr-remove-atribuicao! psr var))))
 	(values nil testesTotais)))
 
-;================================ RESOLVE-BEST =======================================
+;================================ RESOLVE-BEST ========================================
 
+; fill-a-pix->psr-best (array) - Transforms array of a fill-a-pix in a psr. Pre-process
+; the psr solving the trivial cases 9's and 0's and return psr to be solved.
 (defun fill-a-pix->psr-best (array)
   (let*(
 	(i 0)
@@ -576,6 +581,7 @@
 					(cria-pred-geral val (boarders x y nlinhas ncolunas))
 					))))))))
 	(setf psr (cria-psr varList domList restList))
+	;Now pre-process variables evolved in trivial cases.
 	(dolist (var aux1)
 		(psr-altera-dominio! psr var NIL)
 		(psr-adiciona-atribuicao! psr var 1))
@@ -584,15 +590,54 @@
 		(psr-adiciona-atribuicao! psr var 0))
 	psr))
 
-; resolve-best(array) - Receives and Fill-a-Pix array and use best algorythm to solve it.
+; maximum-degree-best(psr) - Returns the maximum degree variable.
+(defun maximum-degree-best(psr)
+	(let ((varList  (psr-variaveis-nao-atribuidas psr)) (maximumVar nil) (aux 0) (maximumNum -1))
+		(dolist (var varList)
+			(setf aux 0)
+			(dolist (restr (psr-variavel-restricoes psr var))
+				(dolist (ele (restricao-variaveis restr))
+					(cond ((and (not (equal var ele)) (psr-variavel-valor psr ele))
+						(incf aux) (return)))))
+			(cond ((< maximumNum aux)
+				(setf maximumNum aux) (setf maximumVar var))))
+	maximumVar))
+
+; procura-retrocesso-best(psr) - Backtracking Search using Maximum Degree Heuristic.
+(defun procura-retrocesso-best(psr)
+	(let ((testesTotais 0) (res nil) (res1 nil) (var nil) (inf nil))
+		(cond ((psr-completo-p psr) 
+			(return-from procura-retrocesso-best (values psr testesTotais))))
+		(setf var (maximum-degree-best psr))	
+		(dolist (atr (psr-variavel-dominio psr var))
+			(setf res1 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
+			(setf testesTotais (+ testesTotais (nth 1 res1)))			
+			(cond ((nth 0 res1)
+				(psr-adiciona-atribuicao! psr var atr)
+				(setf res1 (multiple-value-list (MAC psr var)))
+				(setf testesTotais (+ testesTotais (nth 1 res1)))
+				(setf inf (nth 0 res1))
+				(cond (inf
+					(adiciona-inferencias psr inf)
+					(setf res1 (multiple-value-list (procura-retrocesso-best psr)))
+					(setf res (nth 0 res1))
+					(setf testesTotais (+ testesTotais (nth 1 res1)))
+					(cond ((not (equal res nil)) 
+						(return-from procura-retrocesso-best (values res testesTotais))))
+					(adiciona-inferencias psr inf)))
+				(psr-remove-atribuicao! psr var))))
+	(values nil testesTotais)))
+
+; resolve-best(array) - Receives an Fill-a-Pix array and use best algorythm and
+; heuristic combination to solve it.
 (defun resolve-best(arr)
-  (let ((res (procura-retrocesso-simples (fill-a-pix->psr-best arr))))
+  (let ((res (procura-retrocesso-best (fill-a-pix->psr-best arr))))
 		(cond ((equal res nil)
 			nil)
 			(T (psr->fill-a-pix res (array-dimension arr 0) (array-dimension arr 1))))))
-	
-			
-;========================= FIM FUNCOES PARA RESOLUCAO CSP =================================================
+				
+;========================= FIM FUNCOES PARA RESOLUCAO CSP ======================================
+;===================================== FIM =====================================================
 (defvar puzzle1)
 (defvar puzzle2)
 (defvar puzzle5)
@@ -658,4 +703,3 @@
 (setf psr5 (fill-a-pix->psr puzzle5))
 (setf psr1 (fill-a-pix->psr puzzle1))
 (setf psr0 (fill-a-pix->psr puzzle0))
-
