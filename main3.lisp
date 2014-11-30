@@ -9,10 +9,10 @@
 ;=========================== FUNCOES AUXILIARES ============================
 ; membro(elemento lista) - Verifies if the element is in the list.
 (defun membro (ele lis)
-	(cond ((null lis) nil)
-		((equal ele (first lis)) T)
-		(T (membro ele (rest lis)))))
-		
+	(dolist (e lis)
+		(if (equal e ele)
+			(return-from membro T)))
+	NIL)
 ;========================== ESTRUTURAS DE DADOS ===========================
 
 ; 						TIPO RESTRICAO
@@ -42,8 +42,8 @@
 ;###Constructor###
 ; cria-psr(lista lista lista) - Create PSR.	
 (defun cria-psr (lista-v lista-d lista-r)
-	(let ((vars-hash (make-hash-table :test #'equal :size (length lista-v) :rehash-threshold 1.0)) (iter-var lista-v) 
-	(iter-dom lista-d) (counter 0))
+	(let ((vars-hash (make-hash-table :test 'equal)) (iter-var lista-v) 
+	(iter-dom lista-d))
 		(loop do
 			(setf (gethash (first iter-var) vars-hash) (make-var :nome (first iter-var) :dom (first iter-dom)))
 			(setf iter-var (rest iter-var))
@@ -51,8 +51,7 @@
 		while(not(null iter-var)))
 		(dolist (restr lista-r)
 			(dolist (ele (restricao-variaveis restr))
-				(setf (var-restr-indice (gethash ele vars-hash)) (append (var-restr-indice (gethash ele vars-hash)) (list counter))))
-			(incf counter))
+			 (push restr (var-restr-indice (gethash ele vars-hash)))))
 		(let ((psr (make-psr :variaveis-hash vars-hash :lista-restr lista-r :lista-var lista-v)))
 			psr)))		
 ;#################			
@@ -63,10 +62,10 @@
 	(let ((res nil) (iter-var (psr-lista-var psr)))
 		(loop do
 			(when (not(equal (var-valor (gethash (first iter-var) (psr-variaveis-hash psr))) nil))
-				(setf res (append res (list(cons (first iter-var) (var-valor (gethash (first iter-var) (psr-variaveis-hash psr))))))))
+				(push (cons (first iter-var) (var-valor (gethash (first iter-var) (psr-variaveis-hash psr)))) res))
 			(setf iter-var (rest iter-var))
 			while(not(null iter-var)))
-	res))
+	(reverse res)))
 
 ; psr-variaveis-todas(psr) - Returns a list with all variables.		 
 (defun psr-variaveis-todas (psr)
@@ -78,11 +77,11 @@
 	(let ((res nil) (iter-var (psr-lista-var psr)))
 		(loop do
 			(when (equal (var-valor (gethash (first iter-var) (psr-variaveis-hash psr))) nil)
-				(setf res (append res (list  (first iter-var)))))
+				(push (first iter-var) res))
 			(setf iter-var (rest iter-var))
 		while(not(null iter-var)))
-	res))
-
+	(reverse res)))
+	
 ; psr-variavel-valor(psr variavel) - Function returns value of variable or nil if variable
 ; doesnt have one.
 (defun psr-variavel-valor(psr var)
@@ -94,15 +93,7 @@
 	
 ; psr-variavel-restricoes(psr var) - Returns all restriction applied to var in the psr.
 (defun psr-variavel-restricoes(psr var)
-	(cond ((null (psr-lista-restr psr)) (return-from psr-variavel-restricoes nil)))
-	(let ((res nil) (i (var-restr-indice (gethash var (psr-variaveis-hash psr)))))
-		(if (null i) (return-from psr-variavel-restricoes nil))
-		(loop do
-			(when (membro var (restricao-variaveis (nth (first i) (psr-lista-restr psr))))
-				(setf res (append res (list (nth (first i) (psr-lista-restr psr))))))
-			(setf i (rest i))
-		while(not(null i)))
-	res))
+	(var-restr-indice (gethash var (psr-variaveis-hash psr))))  
 
 ; psr-adiciona-atribuicao! (psr var valor) - Adds a value to the var.
 (defun psr-adiciona-atribuicao! (psr var valor)
@@ -362,8 +353,8 @@
 ;========================================================================================
 ;==================================== INFERENCIA ========================================
 ; AUXILIAR FUNCTIONS AND STRUCTURE
-; 
-(defstruct inferencia (var-dom-hash (make-hash-table :test #'equal :rehash-threshold 1.0)))
+; Inferencia hash-table saves variable's dominio.
+(defstruct inferencia (var-dom-hash (make-hash-table :test 'equal)))
 
 ; adiciona-inferencias(psr inferencias) - Add new dom and saves the old ones in inferencias.
 (defun adiciona-inferencias(psr inferencias)
@@ -373,8 +364,7 @@
 			do (progn
 					(setf dom (psr-variavel-dominio psr key))
 					(psr-altera-dominio! psr key value)
-					(setf (gethash key (inferencia-var-dom-hash inferencias)) dom)
-			))))
+					(setf (gethash key (inferencia-var-dom-hash inferencias)) dom)))))
 			
 ; get-dominio-inferencias(var inferencias) - Get var's dom saved in inferencias.
 (defun get-dominio-inferencias(var inferencias)
@@ -430,7 +420,7 @@
 					(setf foundConsistentValue T) (return))))
 			(cond ((not foundConsistentValue)
 				(setf revised T)
-				(setf novo-dominio-x (remove vx novo-dominio-x :test #'equal)))))
+				(setf novo-dominio-x (remove vx novo-dominio-x :test 'equal)))))
 		(cond (revised
 			(set-dominio-inferencias x novo-dominio-x inferencias)))
 	(values revised testesTotais)))
@@ -443,7 +433,7 @@
 			(cond ((not (equal var var-natribuida))
 				(dolist (ele (psr-variavel-restricoes psr var))
 					(cond ((and (membro var-natribuida (restricao-variaveis ele)) (not(membro (cons var-natribuida var) result)))
-						(setf result (append result (list (cons var-natribuida var))))))))))
+						(push (cons var-natribuida var) result)))))))
 		result))
 						
 ; forward-checking(psr var) - Mechanism used in restriction propagation.
@@ -497,7 +487,7 @@
 				(if (equal (length (get-dominio-inferencias (car arco) inferencias)) 0)
 					(return-from mac-list (values nil testesTotais return-arcos inferencia)))
 				(setf novos-arcos (arcos-vizinhos-nao-atribuidos psr (car arco)))
-				(setf novos-arcos (remove (cons (cdr arco) (car arco)) novos-arcos :test #'equal))
+				(setf novos-arcos (remove (cons (cdr arco) (car arco)) novos-arcos :test 'equal))
 				(setf return-arcos (append return-arcos novos-arcos)))))
 		(values T testesTotais return-arcos inferencia)))
 				
@@ -590,6 +580,28 @@
 		(psr-adiciona-atribuicao! psr var 0))
 	psr))
 
+; forward-checking-best(psr var) - Mechanism used in restriction propagation.
+(defun forward-checking-best(psr var)
+	(let ((inferencias (make-inferencia)) (testesTotais 0) (lista-arcos (arcos-vizinhos-nao-atribuidos-best psr var)) (aux nil))
+		(dolist (arco lista-arcos)
+			(setf aux (multiple-value-list (revise psr (car arco) (cdr arco) inferencias)))
+			(setf testesTotais (+ testesTotais (nth 1 aux)))
+			(cond ((nth 0 aux)
+					;Found Variable that have no possible value left and returns nil.
+					(if (equal (length (get-dominio-inferencias (car arco) inferencias)) 0)	
+						(return-from forward-checking-best (values nil testesTotais))))))
+	(values inferencias testesTotais)))
+	
+; arcos-vizinhos-nao-atribuidos-best(psr var) - Returns a list with all arcs corresponding
+; a restriction between var and other vars that share restriction with it.
+(defun arcos-vizinhos-nao-atribuidos-best(psr var)
+	(let ((result nil))
+		(dolist (ele (psr-variavel-restricoes psr var))
+			(dolist (ele2 (restricao-variaveis ele))
+				(cond ((and (not (equal var ele2)) (not(membro (cons ele2 var) result)))
+					(push (cons ele2 var) result)))))
+		(reverse result)))
+	
 ; maximum-degree-best(psr) - Returns the maximum degree variable.
 (defun maximum-degree-best(psr)
 	(let ((varList  (psr-variaveis-nao-atribuidas psr)) (maximumVar nil) (aux 0) (maximumNum -1))
@@ -614,7 +626,7 @@
 			(setf testesTotais (+ testesTotais (nth 1 res1)))			
 			(cond ((nth 0 res1)
 				(psr-adiciona-atribuicao! psr var atr)
-				(setf res1 (multiple-value-list (MAC psr var)))
+				(setf res1 (multiple-value-list (forward-checking-best psr var)))
 				(setf testesTotais (+ testesTotais (nth 1 res1)))
 				(setf inf (nth 0 res1))
 				(cond (inf
