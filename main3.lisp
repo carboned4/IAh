@@ -35,7 +35,7 @@
 
 	
 ; 						TIPO PSR
-(defstruct var (nome nil) (valor nil) (dom nil) (restr-indice nil))
+(defstruct var (nome nil) (valor nil) (dom nil) (restr nil))
 
 (defstruct psr (variaveis-hash nil) (lista-var nil) (lista-restr nil))
 
@@ -51,7 +51,7 @@
 		while(not(null iter-var)))
 		(dolist (restr lista-r)
 			(dolist (ele (restricao-variaveis restr))
-			 (push restr (var-restr-indice (gethash ele vars-hash)))))
+				(setf (var-restr (gethash ele vars-hash)) (append (var-restr (gethash ele vars-hash)) (list restr)))))
 		(let ((psr (make-psr :variaveis-hash vars-hash :lista-restr lista-r :lista-var lista-v)))
 			psr)))		
 ;#################			
@@ -62,10 +62,10 @@
 	(let ((res nil) (iter-var (psr-lista-var psr)))
 		(loop do
 			(when (not(equal (var-valor (gethash (first iter-var) (psr-variaveis-hash psr))) nil))
-				(push (cons (first iter-var) (var-valor (gethash (first iter-var) (psr-variaveis-hash psr)))) res))
+				(setf res (append res (list(cons (first iter-var) (var-valor (gethash (first iter-var) (psr-variaveis-hash psr))))))))
 			(setf iter-var (rest iter-var))
-			while(not(null iter-var)))
-	(reverse res)))
+		while(not(null iter-var)))
+	res))
 
 ; psr-variaveis-todas(psr) - Returns a list with all variables.		 
 (defun psr-variaveis-todas (psr)
@@ -93,7 +93,7 @@
 	
 ; psr-variavel-restricoes(psr var) - Returns all restriction applied to var in the psr.
 (defun psr-variavel-restricoes(psr var)
-	(var-restr-indice (gethash var (psr-variaveis-hash psr))))  
+	(var-restr (gethash var (psr-variaveis-hash psr))))  
 
 ; psr-adiciona-atribuicao! (psr var valor) - Adds a value to the var.
 (defun psr-adiciona-atribuicao! (psr var valor)
@@ -116,7 +116,6 @@
 
 ; psr-consistente-p(psr) - Verifies if the CSP is consistent (VERIFIES ALL CSP RESTRICTIONS).
 (defun psr-consistente-p(psr)
-	(cond ((equal (psr-lista-restr psr) nil) (return-from psr-consistente-p (values T 0))))
 	(let ((count 0) (restr (psr-lista-restr psr)))								;All restrictions.
 		(dolist (restricao restr)
 			(incf count)
@@ -127,7 +126,6 @@
 ; psr-variavel-consistente-p(psr var) - Verifies all variable restrictions.
 (defun psr-variavel-consistente-p (psr var)
 	(let ((count 0) (restr (psr-variavel-restricoes psr var)))				;Restriction affects variable.
-		(cond ((null restr) (return-from psr-variavel-consistente-p (values T 0))))
 		(dolist (ele restr)
 			(incf count)
 			(when (not(funcall (restricao-funcao-validacao ele) psr))		;Call to restriction predicate.
@@ -136,9 +134,7 @@
 
 ; psr-atribuicao-consistente-p(psr var value) - Verifies if { var = value } maintain var restricitons consistent.
 (defun psr-atribuicao-consistente-p(psr var valor)
-	(cond ((equal (psr-lista-restr psr) nil) (return-from psr-atribuicao-consistente-p (values T 0))))
 	(let ((res nil) (aux (psr-variavel-valor psr var)))
-		(cond ((equal aux nil) (setf aux nil)))
 		(psr-adiciona-atribuicao! psr var valor)
 		(setf res (multiple-value-list (psr-variavel-consistente-p psr var)))
 		(psr-adiciona-atribuicao! psr var aux)
@@ -146,10 +142,7 @@
 		
 ; psr-atribuicoes-consistentes-arco-p(psr var1 v1 var2 v2) - Verifies if 2 variables are consistent in arc.
 (defun psr-atribuicoes-consistentes-arco-p (psr var1 v1 var2 v2)
-	(cond ((equal (psr-lista-restr psr) nil) (return-from psr-atribuicoes-consistentes-arco-p (values T 0))))
 	(let ((testes 0) (aux1 (psr-variavel-valor psr var1)) (aux2 (psr-variavel-valor psr var2)))
-		(cond ((equal aux1 nil) (setf aux1 nil)))
-		(cond ((equal aux2 nil) (setf aux2 nil)))
 		(psr-adiciona-atribuicao! psr var1 v1)
 		(psr-adiciona-atribuicao! psr var2 v2)
 		(dolist (r (psr-variavel-restricoes psr var1))
@@ -389,7 +382,7 @@
 (defun MRV(psr)
 	(let ((varList (psr-variaveis-nao-atribuidas psr)) (select-var nil) (minimum-domain-size nil) (aux 0))
 		(setf select-var (first varList))
-		(setf minimum-domain-size (length (psr-variavel-dominio psr select-var)))
+		(setf minimum-domain-size (list-length (psr-variavel-dominio psr select-var)))
 		(setf varList (rest varList))
 		(dolist (ele varList)
 			(setf aux (length (psr-variavel-dominio psr ele)))
@@ -404,12 +397,12 @@
 	(foundConsistentValue nil) (aux nil))
 		(setf aux (get-dominio-inferencias x inferencias))
 		(if (not (equal aux -1)) (setf dominio-x aux)
-				  (setf dominio-x (copy-list (psr-variavel-dominio psr x))))	;Faz copia do que esta no PSR.
+				  (setf dominio-x (psr-variavel-dominio psr x)))	;Faz copia do que esta no PSR.
 		(setf novo-dominio-x dominio-x)
 		(setf aux (get-dominio-inferencias y inferencias))
 		(if (psr-variavel-valor psr y) (setf dominio-y (list (psr-variavel-valor psr y)))
 			(if (not (equal aux -1)) (setf dominio-y aux)
-						(setf dominio-y (copy-list (psr-variavel-dominio psr y)))))
+						(setf dominio-y (psr-variavel-dominio psr y))))
 			
 		(dolist (vx dominio-x)
 			(setf foundConsistentValue nil)
@@ -434,7 +427,7 @@
 				(dolist (ele (psr-variavel-restricoes psr var))
 					(cond ((and (membro var-natribuida (restricao-variaveis ele)) (not(membro (cons var-natribuida var) result)))
 						(push (cons var-natribuida var) result)))))))
-		result))
+		(reverse result)))
 						
 ; forward-checking(psr var) - Mechanism used in restriction propagation.
 (defun forward-checking(psr var)
@@ -549,14 +542,12 @@
 	(nlinhas (first(array-dimensions array)))             
 	(ncolunas (second(array-dimensions array)))    
 	(domList (make-list (* nlinhas ncolunas) :initial-element (copy-list dom)))
-	(varlist (make-list (* nlinhas ncolunas) :initial-element (list -1 -1))))        	   
-	(dotimes (a nlinhas)   
-		(dotimes (b ncolunas)      
-			(setf (nth i varList) (format nil "~D ~D" b a))
-			(setf i (+ i 1)))) 
-	(dotimes (y ncolunas)   
-		(dotimes (x nlinhas)
-			(setf val (aref array x y))
+	(varlist (make-list (* nlinhas ncolunas) :initial-element (list -1 -1)))) 	
+	(dotimes (x nlinhas)   
+		(dotimes (y ncolunas)
+			(setf val (aref array x y))     
+			(setf (nth i varList) (format nil "~D ~D" x y))
+			(setf i (+ i 1))
 			(cond ((and (equal val 6) (equal (length (boarders x y  nlinhas ncolunas)) 6))
 					(setf aux1 (append aux1 (boarders x y  nlinhas ncolunas))))
 				((and (equal val 4) (equal (length (boarders x y  nlinhas ncolunas)) 4))
@@ -573,10 +564,8 @@
 	(setf psr (cria-psr varList domList restList))
 	;Now pre-process variables evolved in trivial cases.
 	(dolist (var aux1)
-		(psr-altera-dominio! psr var NIL)
 		(psr-adiciona-atribuicao! psr var 1))
 	(dolist (var aux0)
-		(psr-altera-dominio! psr var NIL)
 		(psr-adiciona-atribuicao! psr var 0))
 	psr))
 
@@ -588,7 +577,7 @@
 			(setf testesTotais (+ testesTotais (nth 1 aux)))
 			(cond ((nth 0 aux)
 					;Found Variable that have no possible value left and returns nil.
-					(if (equal (length (get-dominio-inferencias (car arco) inferencias)) 0)	
+					(if (equal (list-length (get-dominio-inferencias (car arco) inferencias)) 0)	
 						(return-from forward-checking-best (values nil testesTotais))))))
 	(values inferencias testesTotais)))
 	
@@ -598,29 +587,16 @@
 	(let ((result nil))
 		(dolist (ele (psr-variavel-restricoes psr var))
 			(dolist (ele2 (restricao-variaveis ele))
-				(cond ((and (not (equal var ele2)) (not(membro (cons ele2 var) result)))
+				(cond ((and (not (equal var ele2)) (not (psr-variavel-valor psr ele2)) (not(membro (cons ele2 var) result)))
 					(push (cons ele2 var) result)))))
 		(reverse result)))
-	
-; maximum-degree-best(psr) - Returns the maximum degree variable.
-(defun maximum-degree-best(psr)
-	(let ((varList  (psr-variaveis-nao-atribuidas psr)) (maximumVar nil) (aux 0) (maximumNum -1))
-		(dolist (var varList)
-			(setf aux 0)
-			(dolist (restr (psr-variavel-restricoes psr var))
-				(dolist (ele (restricao-variaveis restr))
-					(cond ((and (not (equal var ele)) (psr-variavel-valor psr ele))
-						(incf aux) (return)))))
-			(cond ((< maximumNum aux)
-				(setf maximumNum aux) (setf maximumVar var))))
-	maximumVar))
 
 ; procura-retrocesso-best(psr) - Backtracking Search using Maximum Degree Heuristic.
 (defun procura-retrocesso-best(psr)
 	(let ((testesTotais 0) (res nil) (res1 nil) (var nil) (inf nil))
 		(cond ((psr-completo-p psr) 
 			(return-from procura-retrocesso-best (values psr testesTotais))))
-		(setf var (maximum-degree-best psr))	
+		(setf var (MRV psr))	
 		(dolist (atr (psr-variavel-dominio psr var))
 			(setf res1 (multiple-value-list (psr-atribuicao-consistente-p psr var atr)))
 			(setf testesTotais (+ testesTotais (nth 1 res1)))			
@@ -709,9 +685,3 @@
 	  (nil nil 6 4 4 4 3 1 2 4 nil nil 6 4 nil)
 	  (nil 5 nil 6 nil nil nil nil nil 4 6 nil nil nil nil)
 	  (nil nil nil nil nil nil 3 2 0 nil 4 4 3 nil 2))))
-
-(setf psr1.1 (fill-a-pix->psr puzzle1.1))
-(setf psr2 (fill-a-pix->psr puzzle2))
-(setf psr5 (fill-a-pix->psr puzzle5))
-(setf psr1 (fill-a-pix->psr puzzle1))
-(setf psr0 (fill-a-pix->psr puzzle0))
