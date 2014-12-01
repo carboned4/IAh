@@ -531,8 +531,8 @@
 (defun fill-a-pix->psr-best (array)
   (let*(
 	(i 0)
-	(aux1 nil)		;List of variables msut have value 1.
-	(aux0 nil)		;List of variables msut have value 0.
+	(aux1 nil)		;List of variables must have value 1.
+	(aux0 nil)		;List of variables must have value 0.
 	(psr nil)
 	(val nil)
 	(dom (list 0 1))
@@ -589,7 +589,7 @@
 					(push (cons ele2 var) result)))))
 		(reverse result)))
 
-; procura-retrocesso-best(psr) - Backtracking Search using Maximum Degree Heuristic.
+; procura-retrocesso-best(psr) - Backtracking Search using Minimum Remaining Value Heuristic.
 (defun procura-retrocesso-best(psr)
 	(let ((testesTotais 0) (res nil) (res1 nil) (var nil) (inf nil))
 		(cond ((psr-completo-p psr) 
