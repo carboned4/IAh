@@ -1,10 +1,10 @@
 ;Projecto IA
-;Grupo:
+;Grupo: 38
 ;Artur Jose Fonseca					N 75456 
 ;Andre Filipe Pardal Pires			N 76046
 ;Miguel de Oliveira Melicia Martins N 76102
 
-;(load "exemplos.fas")
+(load "exemplos.fas")
 
 ;=========================== FUNCOES AUXILIARES ============================
 ; membro(elemento lista) - Verifies if the element is in the list.
@@ -161,7 +161,7 @@
 ;========================= FUNCOES DO TABULEIRO ==================================
 
 ; AUXILIAR FUNCTIONS
-; boarders(x y nlinhas ncolunas - Returns all positions around one given (x y)
+; boarders(x y nlinhas ncolunas) - Returns all positions around one given (x y)
 ; without exceed boarders.
 (defun boarders (x y nlinhas ncolunas)
 	(let* (
@@ -192,8 +192,9 @@
 			(cond ((and (>= (+ nils aux) cmp) (not (> aux cmp))) (setf aux 0) (setf nils 0) T)
 				(T (setf aux 0) (setf nils 0) nil)))))
 
-; cria-pred-9(lista) - Create Closure used in positions with restriction equal to 9.				
-(defun cria-pred-9 (lista)
+; cria-pred-1(lista) - Create Closure used in positions that all variables
+; must have value 1.				
+(defun cria-pred-1 (lista)
 	(let ((aux -1) (aux2 nil) (lis lista))
 		#'(lambda (psr)
 			(dolist (ele lis)
@@ -232,17 +233,17 @@
 			(cond ((and (equal val 6) (equal (length (boarders x y  nlinhas ncolunas)) 6))
 					(setf restList(append restList (list   
 					(cria-restricao (boarders x y nlinhas ncolunas) 
-					(cria-pred-9 (boarders x y  nlinhas ncolunas))
+					(cria-pred-1 (boarders x y  nlinhas ncolunas))
 					)))))
 				((and (equal val 4) (equal (length (boarders x y  nlinhas ncolunas)) 4))
 					(setf restList(append restList (list   
 					(cria-restricao (boarders x y nlinhas ncolunas) 
-					(cria-pred-9 (boarders x y  nlinhas ncolunas))
+					(cria-pred-1 (boarders x y  nlinhas ncolunas))
 					)))))
 				((equal val 9)
 				(setf restList(append restList (list   
 					(cria-restricao (boarders x y nlinhas ncolunas) 
-					(cria-pred-9 (boarders x y  nlinhas ncolunas))
+					(cria-pred-1 (boarders x y  nlinhas ncolunas))
 					)))))
 				((equal val 0)
 				(setf restList(append restList (list   
@@ -369,11 +370,8 @@
 	
 ; set-dominio-inferencias(var inferencias) - Update/Set var's dom saved in inferencias.
 (defun set-dominio-inferencias(var dominio inferencias)
-	(let ((aux NIL))
-		(setf aux (multiple-value-list (gethash var (inferencia-var-dom-hash inferencias))))
-		(if (nth 1 aux)
-			(setf (gethash var (inferencia-var-dom-hash inferencias)) dominio)
-			(setf (gethash var (inferencia-var-dom-hash inferencias)) dominio))))
+	(setf (gethash var (inferencia-var-dom-hash inferencias)) dominio))
+		
 
 ;============================= END INFERENCIA ================================================		
 ;=========================== FORWARD-CHECKING-MRV SEARCH =====================================
@@ -397,7 +395,7 @@
 	(foundConsistentValue nil) (aux nil))
 		(setf aux (get-dominio-inferencias x inferencias))
 		(if (not (equal aux -1)) (setf dominio-x aux)
-				  (setf dominio-x (psr-variavel-dominio psr x)))	;Faz copia do que esta no PSR.
+				  (setf dominio-x (psr-variavel-dominio psr x)))	
 		(setf novo-dominio-x dominio-x)
 		(setf aux (get-dominio-inferencias y inferencias))
 		(if (psr-variavel-valor psr y) (setf dominio-y (list (psr-variavel-valor psr y)))
@@ -427,7 +425,7 @@
 				(dolist (ele (psr-variavel-restricoes psr var))
 					(cond ((and (membro var-natribuida (restricao-variaveis ele)) (not(membro (cons var-natribuida var) result)))
 						(push (cons var-natribuida var) result)))))))
-		(reverse result)))
+	(reverse result)))
 						
 ; forward-checking(psr var) - Mechanism used in restriction propagation.
 (defun forward-checking(psr var)
@@ -495,9 +493,9 @@
 			(setf testesTotais (+ testesTotais (nth 1 aux)))
 			(setf lista-arcos (nth 2 aux))
 			(setf inferencias (nth 3 aux))
-			(if (not repeat)
+			(if (not repeat)								;IF iteration stop with NIL return.
 				(return-from MAC (values nil testesTotais)))
-		while(not (null lista-arcos)))
+		while(not (null lista-arcos)))						;While has arcs to iterate.
 		(values inferencias testesTotais)))
 					
 ; procura-retrocesso-mac-mrv(psr) - Solves CSP using MAC (Maintain Arc Consistency) mechanism and MRV
@@ -533,8 +531,8 @@
 (defun fill-a-pix->psr-best (array)
   (let*(
 	(i 0)
-	(aux1 nil)
-	(aux0 nil)
+	(aux1 nil)		;List of variables msut have value 1.
+	(aux0 nil)		;List of variables msut have value 0.
 	(psr nil)
 	(val nil)
 	(dom (list 0 1))
@@ -626,62 +624,3 @@
 				
 ;========================= FIM FUNCOES PARA RESOLUCAO CSP ======================================
 ;===================================== FIM =====================================================
-(defvar puzzle1)
-(defvar puzzle2)
-(defvar puzzle5)
-(defvar puzzle1.1)
-(defvar puzzle0)
-(defvar psr0)
-(defvar psr5)
-(defvar psr2)
-(defvar psr1)
-(defvar psr1.1)
-
-(setf puzzle0 (make-array (list 3 3) :initial-contents 
-	'((4 nil nil)
-	  (nil nil nil)
-	  (nil nil nil))))
-
-(setf puzzle1 (make-array (list 5 5) :initial-contents
-	'((nil nil 1 nil nil)
-	  (nil 1 nil nil 5)
-	  (1 nil nil nil 6)
-	  (nil nil nil 9 nil)
-	  (nil 5 6 nil nil))))
-
-(setf puzzle1.1 (make-array (list 5 5) :initial-contents
-	'((nil 2 3 nil nil)
-	  (nil nil nil nil nil)
-	  (nil nil 5 nil nil)
-	  (nil 4 nil 5 nil)
-	  (nil nil 4 nil nil)
-	  )))
-	  
-(setf puzzle2 (make-array (list 10 10) :initial-contents
-	'((nil 2 3 nil nil 0 nil nil nil nil)
-	  (nil nil nil nil 3 nil 2 nil nil 6)
-	  (nil nil 5 nil 5 3 nil 5 7 4)
-	  (nil 4 nil 5 nil 5 nil 6 nil 3)
-	  (nil nil 4 nil 5 nil 6 nil nil 3)
-	  (nil nil nil 2 nil 5 nil nil nil nil)
-	  (4 nil 1 nil nil nil 1 1 nil nil)
-	  (4 nil 1 nil nil nil 1 nil 4 nil)
-	  (nil nil nil nil 6 nil nil nil nil 4)
-	  (nil 4 4 nil nil nil nil 4 nil nil))))
-
-(setf puzzle5 (make-array (list 15 15) :initial-contents
-	'((0 nil nil 4 3 2 1 nil nil nil nil nil 3 nil nil)
-	  (nil nil 5 nil nil 4 nil nil 4 4 nil nil nil nil 3)
-	  (nil 5 4 5 4 5 5 nil 5 3 nil 1 2 nil 3)
-	  (4 nil nil nil 4 nil nil 4 2 nil 1 nil nil nil nil)
-	  (nil nil 5 4 nil 2 2 nil 1 0 nil nil 7 5 nil)
-	  (nil nil nil 5 nil nil 0 nil nil nil nil 4 5 nil 2)
-	  (4 nil nil 5 4 2 0 0 nil nil nil 5 6 nil nil)
-	  (5 nil nil 6 5 nil nil nil nil nil 3 3 3 nil 3)
-	  (nil nil 5 nil 5 3 nil nil nil nil nil nil 3 nil nil)
-	  (5 nil nil 6 5 nil 3 5 nil 6 nil nil 0 nil 0)
-	  (nil nil 5 nil 4 3 2 4 5 nil 4 nil nil 1 nil)
-	  (nil 7 nil nil 5 nil nil 1 nil 5 5 5 nil nil nil)
-	  (nil nil 6 4 4 4 3 1 2 4 nil nil 6 4 nil)
-	  (nil 5 nil 6 nil nil nil nil nil 4 6 nil nil nil nil)
-	  (nil nil nil nil nil nil 3 2 0 nil 4 4 3 nil 2))))
