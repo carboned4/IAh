@@ -62,10 +62,10 @@
 	(let ((res nil) (iter-var (psr-lista-var psr)))
 		(loop do
 			(when (not(equal (var-valor (gethash (first iter-var) (psr-variaveis-hash psr))) nil))
-				(setf res (append res (list(cons (first iter-var) (var-valor (gethash (first iter-var) (psr-variaveis-hash psr))))))))
+				(push (cons (first iter-var) (var-valor (gethash (first iter-var) (psr-variaveis-hash psr)))) res))
 			(setf iter-var (rest iter-var))
 		while(not(null iter-var)))
-	res))
+	(reverse res)))
 
 ; psr-variaveis-todas(psr) - Returns a list with all variables.		 
 (defun psr-variaveis-todas (psr)
